@@ -14,20 +14,20 @@ export const metadata: Metadata = {
       ? `https://${process.env.VERCEL_URL}`
       : `http://localhost:${process.env.PORT || 3000}`
   ),
-  title: "Paytrack",
+  title: "Invonix - Invoice Manager",
   description: "Efficient payment tracking and management",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     url: "/",
-    title: "Paytrack",
+    title: "Invonix - Invoice Manager",
     description: "Efficient payment tracking and management",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Paytrack",
+    title: "Invonix - Invoice Manager",
     description: "Efficient payment tracking and management",
   },
 };

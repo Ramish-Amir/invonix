@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PanelsTopLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +13,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed top-0 left-0 z-20 h-screen -translate-x-full lg:translate-x-0 transition-[width] ease-in-out duration-300",
+        "fixed border-r top-0 left-0 z-20 h-screen -translate-x-full lg:translate-x-0 transition-[width] ease-in-out duration-300",
         isOpen === false ? "w-[90px]" : "w-72"
       )}
     >
@@ -38,7 +37,7 @@ export function Sidebar() {
                   : "translate-x-0 opacity-100"
               )}
             >
-              Paytrack
+              Invonix
             </h1>
           </Link>
         </Button>

@@ -68,8 +68,7 @@ export function SignUpForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Register</CardTitle>
         <CardDescription>
-          Sign up to experience smarter, faster inventory management with
-          Paytrack.
+          Sign up to experience smarter, faster invoice management with Invonix.
         </CardDescription>
       </CardHeader>
       <CardContent>

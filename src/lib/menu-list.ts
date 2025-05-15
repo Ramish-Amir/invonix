@@ -1,53 +1,21 @@
 import {
-  Tag,
-  Users,
-  Bookmark,
   SquarePen,
   LayoutGrid,
   LucideIcon,
+  FileText,
 } from "lucide-react";
 
-type Submenu = {
-  href: string;
-  label: string;
-  active: boolean;
-};
-
-type Menu = {
-  href: string;
-  label: string;
-  active: boolean;
-  icon: LucideIcon;
-  submenus: Submenu[];
-};
-
-type Group = {
-  groupLabel: string;
-  menus: Menu[];
-};
-
-export function getMenuList(pathname: string): Group[] {
-  return [
-    {
-      groupLabel: "",
-      menus: [
-        {
-          href: "/",
-          label: "Dashboard",
-          active: pathname === "/",
-          icon: LayoutGrid,
-          submenus: [],
-        },
-      ],
-    },
-    {
-      groupLabel: "Contents",
+/**
+ * A complete example:
+ * {
+      groupLabel: "Invoices",
       menus: [
         {
           href: "",
-          label: "Posts",
+          label: "All Invoices",
           active: pathname.includes("/posts"),
-          icon: SquarePen,
+          icon: FileText,
+          submenus: [],
           submenus: [
             {
               href: "/posts",
@@ -77,61 +45,59 @@ export function getMenuList(pathname: string): Group[] {
         },
       ],
     },
+ */
+
+type Submenu = {
+  href: string;
+  label: string;
+  active: boolean;
+};
+
+type Menu = {
+  href: string;
+  label: string;
+  active: boolean;
+  icon: LucideIcon;
+  submenus: Submenu[];
+};
+
+type Group = {
+  groupLabel: string;
+  menus: Menu[];
+};
+
+export function getMenuList(pathname: string): Group[] {
+  return [
     {
-      groupLabel: "Management",
+      groupLabel: "",
       menus: [
         {
-          href: "",
-          label: "User Management",
-          active: pathname.includes("/user-management"),
-          icon: Users,
-          submenus: [
-            {
-              href: "/user-management/users",
-              label: "Users",
-              active: pathname === "/user-management/users",
-            },
-            {
-              href: "/user-management/roles",
-              label: "Roles",
-              active: pathname === "/user-management/roles",
-            },
-          ],
+          href: "/",
+          label: "Dashboard",
+          active: pathname === "/dashboard",
+          icon: LayoutGrid,
+          submenus: [],
         },
-        // {
-        //   href: "/users",
-        //   label: "Users",
-        //   active: pathname.includes("/users"),
-        //   icon: Users,
-        //   submenus: [],
-        // },
-        // {
-        //   href: "/account",
-        //   label: "Account",
-        //   active: pathname.includes("/account"),
-        //   icon: Settings,
-        //   submenus: [],
-        // },
       ],
     },
-    // {
-    //   groupLabel: "User Management",
-    //   menus: [
-    //     {
-    //       href: "/users",
-    //       label: "Users",
-    //       active: pathname.includes("/users"),
-    //       icon: Users,
-    //       submenus: [],
-    //     },
-    //     {
-    //       href: "/roles",
-    //       label: "Roles",
-    //       active: pathname.includes("/role"),
-    //       icon: Settings,
-    //       submenus: [],
-    //     },
-    //   ],
-    // },
+    {
+      groupLabel: "Invoices",
+      menus: [
+        {
+          href: "invoices",
+          label: "All Invoices",
+          active: pathname.includes("/posts"),
+          icon: FileText,
+          submenus: [],
+        },
+        {
+          href: "/create-invoice",
+          label: "Create Invoice",
+          active: pathname.includes("/create-invoice"),
+          icon: SquarePen,
+          submenus: [],
+        },
+      ],
+    },
   ];
 }

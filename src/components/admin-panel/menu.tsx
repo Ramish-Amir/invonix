@@ -68,7 +68,8 @@ export function Menu({ isOpen }: MenuProps) {
                         <Tooltip delayDuration={100}>
                           <TooltipTrigger asChild>
                             <Button
-                              variant={active ? "secondary" : "ghost"}
+                              variant={active ? "default" : "ghost"}
+                              // variant={"destructive"}
                               className="w-full justify-start h-10 mb-1"
                               asChild
                             >
