@@ -18,8 +18,6 @@ export default function PdfGenerator() {
   });
 
   const handleDownloadPdf = (): void => {
-    // updatePdfInstance();
-
     fetch(String(pdfInstance.url), {
       method: "GET",
       headers: { "Content-Type": pdfInstance.blob?.type || "application/pdf" },
