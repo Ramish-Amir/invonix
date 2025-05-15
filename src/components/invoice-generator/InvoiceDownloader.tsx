@@ -1,14 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Page,
-  Text,
-  View,
-  Document,
-  StyleSheet,
-  usePDF,
-} from "@react-pdf/renderer";
+import { usePDF } from "@react-pdf/renderer";
 import { Button } from "../ui/button";
 import InvoicePdf from "./InvoicePdf";
 

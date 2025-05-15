@@ -1,5 +1,4 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { Container } from "lucide-react";
 
 export default function InvoicePdf() {
   // Create styles
