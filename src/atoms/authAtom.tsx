@@ -1,18 +1,9 @@
+// store/auth.ts
 import { atom } from "jotai";
+import type { User } from "firebase/auth";
 
-// export const authAtom: any = atom(false);
+// Holds the current Firebase user or null
+export const authAtom = atom<User | null>(null);
 
-const auth = atom(localStorage.getItem("auth"));
-
-// Create the atom with persistence
-export const authAtom = atom(
-  (get) => get(auth) || null,
-  (get, set, newAuth: string | null) => {
-    set(auth, newAuth);
-    if (auth) {
-      localStorage.setItem("auth", newAuth || "");
-    } else {
-      localStorage.removeItem("auth");
-    }
-  }
-);
+// Tracks whether Firebase has settled its initial state
+export const authLoadingAtom = atom(true);

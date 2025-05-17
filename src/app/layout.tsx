@@ -4,6 +4,8 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 import { ThemeProvider } from "@/providers/theme-provider";
+import { Provider as JotaiProvider } from "jotai";
+import AuthSync from "@/components/auth/AuthSync";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -40,7 +42,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={GeistSans.className}>
         <ThemeProvider attribute="class" defaultTheme="ligth" enableSystem>
-          <main>{children}</main>
+          <JotaiProvider>
+            <AuthSync>
+              <main>{children}</main>
+            </AuthSync>
+          </JotaiProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -15,8 +15,8 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { useAtom } from "jotai";
-import { authAtom } from "@/atoms/authAtom";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface MenuProps {
   isOpen: boolean | undefined;
@@ -27,11 +27,9 @@ export function Menu({ isOpen }: MenuProps) {
   const menuList = getMenuList(pathname);
   const router = useRouter();
 
-  const [, setAuth] = useAtom(authAtom);
-
-  const handleLougout = () => {
+  const handleLougout = async () => {
+    await signOut(auth);
     router.push("/auth/login");
-    setAuth(null);
   };
 
   return (

@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 // Define the validation schema using zod
 const loginSchema = z.object({
@@ -47,12 +49,20 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = (data: LoginFormData) => {
+  const onSubmit = async (data: LoginFormData) => {
     const { email, password } = data;
 
     if (email && password) {
-      setAuth(JSON.stringify({ accessToken: "testToken", role: "Admin" }));
-      router.push("/dashboard");
+      const user = await signInWithEmailAndPassword(auth, email, password);
+
+      if (!user) {
+        // Handle invalid login
+        alert("Invalid email or password.");
+        return;
+      }
+
+      setAuth(user.user);
+      router.replace("/dashboard");
     } else {
       // Handle invalid input or error
       alert("Please enter both email and password.");
