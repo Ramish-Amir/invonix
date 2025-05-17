@@ -1,4 +1,10 @@
-import { SquarePen, LayoutGrid, LucideIcon, FileText } from "lucide-react";
+import {
+  SquarePen,
+  LayoutGrid,
+  LucideIcon,
+  FileText,
+  FileCog,
+} from "lucide-react";
 
 /**
  * A complete example:
@@ -90,6 +96,13 @@ export function getMenuList(pathname: string): Group[] {
           label: "New Invoice",
           active: pathname === "/create-invoice",
           icon: SquarePen,
+          submenus: [],
+        },
+        {
+          href: "/invoice-settings",
+          label: "Invoice Settings",
+          active: pathname === "/invoice-settings",
+          icon: FileCog,
           submenus: [],
         },
       ],

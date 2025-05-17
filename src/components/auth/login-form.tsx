@@ -27,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 // Define the validation schema using zod
 const loginSchema = z.object({

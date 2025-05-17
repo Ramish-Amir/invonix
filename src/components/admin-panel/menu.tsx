@@ -27,7 +27,7 @@ export function Menu({ isOpen }: MenuProps) {
   const menuList = getMenuList(pathname);
   const router = useRouter();
 
-  const handleLougout = async () => {
+  const handleLogout = async () => {
     await signOut(auth);
     router.push("/auth/login");
   };
@@ -112,7 +112,7 @@ export function Menu({ isOpen }: MenuProps) {
               )}
             </li>
           ))}
-          <li className="w-full grow flex items-end" onClick={handleLougout}>
+          <li className="w-full grow flex items-end" onClick={handleLogout}>
             <TooltipProvider disableHoverableContent>
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
