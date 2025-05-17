@@ -3,11 +3,10 @@
 import { authAtom, authLoadingAtom } from "@/atoms/authAtom";
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
 import { ContentLayout } from "@/components/admin-panel/content-layout";
-import { useAtom, useAtomValue } from "jotai";
-import { redirect, useRouter } from "next/navigation";
+import { useAtomValue } from "jotai";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth as fbAuth } from "@/lib/firebase";
+import PageSpinner from "@/components/general/page-spinner";
 
 export default function PrivateRoute({
   children,
@@ -25,13 +24,9 @@ export default function PrivateRoute({
     }
   }, [loading, user, router]);
 
-  // While loading, render nothing (or a spinner)
+  // While loading, render spinner
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   // If not loading and user is null, we've already redirected
