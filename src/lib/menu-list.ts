@@ -85,7 +85,7 @@ export function getMenuList(pathname: string): Group[] {
       groupLabel: "Invoices",
       menus: [
         {
-          href: "invoices",
+          href: "/invoices",
           label: "All Invoices",
           active: pathname === "/invoices",
           icon: FileText,

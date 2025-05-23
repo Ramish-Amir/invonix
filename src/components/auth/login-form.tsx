@@ -62,7 +62,7 @@ export default function LoginForm() {
       }
 
       setAuth(user.user);
-      router.replace("/dashboard");
+      router.replace("/");
     } else {
       // Handle invalid input or error
       alert("Please enter both email and password.");
