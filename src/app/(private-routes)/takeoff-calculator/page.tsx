@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -241,30 +242,45 @@ export default function PDFViewer() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">📏 PDF Takeoff Tool</h1>
+    <div className="">
+      <h2 className="text-gray-500">Take-off Calculator</h2>
 
-      <label htmlFor={fileId}>Upload a PDF:</label>
-      <input
-        id={fileId}
-        onChange={onFileChange}
-        type="file"
-        accept="application/pdf"
-        className="mb-4 block"
-      />
-
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setScale((s) => s + 0.25)}>Zoom In</button>
-        <button onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}>
+      <div className="flex gap-2 my-4">
+        <Button variant={"outline"} onClick={() => setScale((s) => s + 0.25)}>
+          Zoom In
+        </Button>
+        <Button
+          variant={"outline"}
+          onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
+        >
           Zoom Out
-        </button>
-        <button onClick={() => setCalibrating(true)}>Calibrate</button>
-        <button onClick={handleUndo} disabled={history.length === 0}>
+        </Button>
+        <Button onClick={() => setCalibrating(true)}>Calibrate</Button>
+        <Button
+          variant={"outline"}
+          onClick={handleUndo}
+          disabled={history.length === 0}
+        >
           Undo
-        </button>
-        <button onClick={handleRedo} disabled={redoStack.length === 0}>
+        </Button>
+        <Button
+          variant={"outline"}
+          onClick={handleRedo}
+          disabled={redoStack.length === 0}
+        >
           Redo
-        </button>
+        </Button>
+
+        <div>
+          <label htmlFor={fileId}>Upload a PDF:</label>
+          <input
+            id={fileId}
+            onChange={onFileChange}
+            type="file"
+            accept="application/pdf"
+            className="mb-4 block"
+          />
+        </div>
       </div>
 
       {file && (
