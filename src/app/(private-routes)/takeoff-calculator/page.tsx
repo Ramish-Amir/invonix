@@ -47,6 +47,8 @@ export default function PDFViewer() {
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
 
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point | null>(null);
@@ -157,25 +159,55 @@ export default function PDFViewer() {
 
     return (
       <svg
-        className="absolute top-0 left-0 pointer-events-none"
+        className="absolute top-0 left-0 pointer-events-auto"
         width="100%"
         height="100%"
       >
-        {/* Final measurements */}
-        {pageMeasurements.map((m) => (
-          <line
-            key={m.id}
-            x1={m.points[0].x * scale}
-            y1={m.points[0].y * scale}
-            x2={m.points[1].x * scale}
-            y2={m.points[1].y * scale}
-            stroke="red"
-            strokeWidth={4}
-            opacity={0.5}
-          />
-        ))}
+        {pageMeasurements.map((m) => {
+          const x1 = m.points[0].x * scale;
+          const y1 = m.points[0].y * scale;
+          const x2 = m.points[1].x * scale;
+          const y2 = m.points[1].y * scale;
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+          const label =
+            m.realDistance !== null
+              ? `${m.realDistance.toFixed(2)} m`
+              : `${m.pixelDistance.toFixed(1)} px`;
 
-        {/* Temp drag line */}
+          return (
+            <g key={m.id}>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="red"
+                strokeWidth={4}
+                opacity={0.5}
+                onMouseEnter={() => setHoveredId(m.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
+              />
+              {hoveredId === m.id && (
+                <text
+                  x={midX}
+                  y={midY - 8}
+                  fill="black"
+                  fontSize={12}
+                  textAnchor="middle"
+                  stroke="white"
+                  strokeWidth={0.5}
+                  paintOrder="stroke"
+                >
+                  {label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Preview line during drag */}
         {isDragging && dragStart && dragEnd && dragPage === pageNumber && (
           <line
             x1={dragStart.x * scale}
