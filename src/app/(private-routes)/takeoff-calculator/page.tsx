@@ -154,7 +154,8 @@ export default function PDFViewer() {
             x2={m.points[1].x * scale}
             y2={m.points[1].y * scale}
             stroke="red"
-            strokeWidth={2}
+            strokeWidth={4}
+            opacity={0.4}
           />
         ))}
       </svg>
