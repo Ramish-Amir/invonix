@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
+import { Redo, Undo, Upload } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -245,41 +246,47 @@ export default function PDFViewer() {
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
 
-      <div className="flex gap-2 my-4">
-        <Button variant={"outline"} onClick={() => setScale((s) => s + 0.25)}>
-          Zoom In
-        </Button>
-        <Button
-          variant={"outline"}
-          onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
-        >
-          Zoom Out
-        </Button>
-        <Button onClick={() => setCalibrating(true)}>Calibrate</Button>
-        <Button
-          variant={"outline"}
-          onClick={handleUndo}
-          disabled={history.length === 0}
-        >
-          Undo
-        </Button>
-        <Button
-          variant={"outline"}
-          onClick={handleRedo}
-          disabled={redoStack.length === 0}
-        >
-          Redo
-        </Button>
-
-        <div>
-          <label htmlFor={fileId}>Upload a PDF:</label>
-          <input
-            id={fileId}
-            onChange={onFileChange}
-            type="file"
-            accept="application/pdf"
-            className="mb-4 block"
-          />
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2 my-4">
+          <Button variant={"outline"} onClick={() => setScale((s) => s + 0.25)}>
+            Zoom In
+          </Button>
+          <Button
+            variant={"outline"}
+            onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
+          >
+            Zoom Out
+          </Button>
+          <Button onClick={() => setCalibrating(true)}>Calibrate</Button>
+          <Button
+            variant={"outline"}
+            onClick={handleUndo}
+            disabled={history.length === 0}
+          >
+            <Undo className="w-4 h-4" />
+          </Button>
+          <Button
+            variant={"outline"}
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+          >
+            <Redo className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="flex gap-1 items-center">
+          <div>
+            <label className="flex w-max h-[36px] items-center justify-center px-4 py-2 bg-primary text-white rounded-lg cursor-pointer hover:bg-primary-700 transition-colors">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload PDF
+              <input
+                type="file"
+                accept="application/pdf"
+                multiple
+                onChange={onFileChange}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
       </div>
 
