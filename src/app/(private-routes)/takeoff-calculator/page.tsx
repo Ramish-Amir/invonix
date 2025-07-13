@@ -46,9 +46,9 @@ export default function PDFViewer() {
   const fileId = useId();
 
   // State for PDF file, number of pages, zoom scale, container width, calibration, etc.
-  const [file, setFile] = useState<PDFFile>(null);
+  const [file, setFile] = useState<PDFFile>("/Page 5 Mechanical Drawing.pdf");
   const [numPages, setNumPages] = useState<number>();
-  const [scale, setScale] = useState(1.25);
+  const [scale, setScale] = useState(1);
   const [containerWidth, setContainerWidth] = useState<number>();
   const [calibrating, setCalibrating] = useState(false);
   const [scaleFactor, setScaleFactor] = useState<number | null>(null);
@@ -65,6 +65,13 @@ export default function PDFViewer() {
       setContainerWidth(entry.contentRect.width);
     }
   }, []);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(onResize);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [onResize]);
 
   // Handler for file input change
   function onFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
