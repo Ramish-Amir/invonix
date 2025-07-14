@@ -43,6 +43,7 @@ export default function PDFViewer() {
   const [numPages, setNumPages] = useState<number>();
   const [scale, setScale] = useState(1.25);
   const [containerWidth, setContainerWidth] = useState<number>();
+  const [pdfWidth, setPdfWidth] = useState<number>(0);
   const [calibrating, setCalibrating] = useState(false);
   const [scaleFactor, setScaleFactor] = useState<number | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -162,7 +163,7 @@ export default function PDFViewer() {
     return (
       <svg
         className="absolute top-0 left-0 pointer-events-auto"
-        width="100%"
+        width={pdfWidth}
         height="100%"
       >
         {pageMeasurements.map((m) => {
@@ -291,7 +292,7 @@ export default function PDFViewer() {
       </div>
 
       {file && (
-        <div ref={containerRef}>
+        <div className="max-w-[100%] overflow-auto" ref={containerRef}>
           <Document
             file={file}
             onLoadSuccess={onDocumentLoadSuccess}
@@ -315,6 +316,9 @@ export default function PDFViewer() {
                   }
                   renderAnnotationLayer={false}
                   renderTextLayer={false}
+                  onRenderSuccess={(page) => {
+                    setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
+                  }}
                 />
                 {renderOverlay(index + 1)}
               </div>
