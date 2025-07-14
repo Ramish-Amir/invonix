@@ -201,15 +201,15 @@ export default function PDFViewer() {
                     ry={4}
                     width={80}
                     height={20}
-                    fill="lightblue"
-                    // stroke="black"
-                    // strokeWidth={0.5}
+                    fill="rgb(47, 130, 172)"
+                    stroke="rgb(47, 130, 172)"
+                    strokeWidth={0.5}
                     opacity={0.8}
                   />
                   <text
                     x={midX}
                     y={midY - 10}
-                    fill="black"
+                    fill="white"
                     fontSize={12}
                     textAnchor="middle"
                     fontFamily="sans-serif"
@@ -305,7 +305,10 @@ export default function PDFViewer() {
       </div>
 
       {file && (
-        <div className="max-w-[100%] overflow-auto" ref={containerRef}>
+        <div
+          className="max-w-[100%] max-h-[100vh] overflow-auto"
+          ref={containerRef}
+        >
           <Document
             file={file}
             onLoadSuccess={onDocumentLoadSuccess}
