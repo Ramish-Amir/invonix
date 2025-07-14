@@ -36,7 +36,6 @@ interface Measurement {
 const maxWidth = 800;
 
 export default function PDFViewer() {
-  const fileId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [file, setFile] = useState<PDFFile>("/sample.pdf");
@@ -194,18 +193,31 @@ export default function PDFViewer() {
                 style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
               />
               {hoveredId === m.id && (
-                <text
-                  x={midX}
-                  y={midY - 8}
-                  fill="black"
-                  fontSize={12}
-                  textAnchor="middle"
-                  stroke="white"
-                  strokeWidth={0.5}
-                  paintOrder="stroke"
-                >
-                  {label}
-                </text>
+                <>
+                  <rect
+                    x={midX - 40}
+                    y={midY - 24}
+                    rx={4}
+                    ry={4}
+                    width={80}
+                    height={20}
+                    fill="lightblue"
+                    // stroke="black"
+                    // strokeWidth={0.5}
+                    opacity={0.8}
+                  />
+                  <text
+                    x={midX}
+                    y={midY - 10}
+                    fill="black"
+                    fontSize={12}
+                    textAnchor="middle"
+                    fontFamily="sans-serif"
+                    pointerEvents="none"
+                  >
+                    {label}
+                  </text>
+                </>
               )}
             </g>
           );
@@ -354,4 +366,44 @@ export default function PDFViewer() {
       </div>
     </div>
   );
+}
+
+{
+  /* <svg
+  width={"100%"}
+  height="100%"
+>
+  <g>
+    <line
+      stroke="red"
+      strokeWidth={4}
+      strokeLinecap="round"
+      opacity={0.5}
+      style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
+    />
+
+    <>
+      <rect
+        rx={4}
+        ry={4}
+        width={80}
+        height={20}
+        fill="white"
+        stroke="black"
+        strokeWidth={0.5}
+        opacity={0.9}
+      />
+      <text
+        fill="black"
+        fontSize={12}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontFamily="sans-serif"
+        pointerEvents="none"
+      >
+        50.12 m
+      </text>
+    </>
+  </g>
+</svg>; */
 }
