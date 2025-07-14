@@ -187,6 +187,7 @@ export default function PDFViewer() {
                 y2={y2}
                 stroke="red"
                 strokeWidth={4}
+                strokeLinecap="round"
                 opacity={0.5}
                 onMouseEnter={() => setHoveredId(m.id)}
                 onMouseLeave={() => setHoveredId(null)}
