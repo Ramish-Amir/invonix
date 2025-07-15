@@ -1,12 +1,21 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Redo, Undo, Upload } from "lucide-react";
+import { Redo, Undo, Upload, Scaling } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup,
+} from "@/components/ui/select";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -18,6 +27,14 @@ const options = {
   standardFontDataUrl: "/standard_fonts/",
   wasmUrl: "/wasm/",
 };
+
+const drawingCalibrations: Record<string, number> = {
+  "125": 0.1661, // 1:125 scale => 1 px = 0.1661 m
+  "100": 0.125, // 1:100 scale => 1 px = 0.125 m
+  "75": 0.0933, // 1:75 scale => 1 px = 0.0933 m
+};
+
+const defaultCalibrationValue = "125";
 
 type PDFFile = string | File | null;
 
@@ -31,7 +48,6 @@ interface Measurement {
   id: number;
   points: [Point, Point];
   pixelDistance: number;
-  realDistance: number | null;
 }
 
 const maxWidth = 800;
@@ -41,11 +57,12 @@ export default function PDFViewer() {
 
   const [file, setFile] = useState<PDFFile>("/sample.pdf");
   const [numPages, setNumPages] = useState<number>();
-  const [scale, setScale] = useState(1.25);
+  const [scale, setScale] = useState(1.25); // This the zoom level, 1.25 is 125%
   const [containerWidth, setContainerWidth] = useState<number>();
   const [pdfWidth, setPdfWidth] = useState<number>(0);
-  const [calibrating, setCalibrating] = useState(false);
-  const [scaleFactor, setScaleFactor] = useState<number | null>(null);
+  const [scaleFactor, setScaleFactor] = useState<number | null>(
+    drawingCalibrations[defaultCalibrationValue]
+  ); // Scale factor for converting pixels to meters
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
@@ -119,34 +136,17 @@ export default function PDFViewer() {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
     const pixelDistance = Math.sqrt(dx ** 2 + dy ** 2);
-    let realDistance = null;
 
-    if (calibrating) {
-      const input = prompt("Enter real-world distance in meters:");
-      const meters = parseFloat(input || "0");
-      if (!isNaN(meters) && meters > 0) {
-        const sf = meters / pixelDistance;
-        setScaleFactor(sf);
-        alert(`Calibration complete: 1 px = ${sf.toFixed(4)} meters`);
-      }
-      setCalibrating(false);
-    } else {
-      if (scaleFactor) {
-        realDistance = pixelDistance * scaleFactor;
-      }
+    const newMeasurement: Measurement = {
+      id: Date.now(),
+      points: [p1, p2],
+      pixelDistance,
+    };
 
-      const newMeasurement: Measurement = {
-        id: Date.now(),
-        points: [p1, p2],
-        pixelDistance,
-        realDistance,
-      };
-
-      const updatedMeasurements = [...measurements, newMeasurement];
-      setMeasurements(updatedMeasurements);
-      setHistory((prev) => [...prev, measurements]);
-      setRedoStack([]);
-    }
+    const updatedMeasurements = [...measurements, newMeasurement];
+    setMeasurements(updatedMeasurements);
+    setHistory((prev) => [...prev, measurements]);
+    setRedoStack([]);
 
     // Reset drag state
     setDragStart(null);
@@ -173,10 +173,9 @@ export default function PDFViewer() {
           const y2 = m.points[1].y * scale;
           const midX = (x1 + x2) / 2;
           const midY = (y1 + y2) / 2;
-          const label =
-            m.realDistance !== null
-              ? `${m.realDistance.toFixed(2)} m`
-              : `${m.pixelDistance.toFixed(1)} px`;
+          const label = `${(m.pixelDistance * (scaleFactor || 1)).toFixed(
+            2
+          )} m`;
 
           return (
             <g key={m.id}>
@@ -198,6 +197,7 @@ export default function PDFViewer() {
                   <rect
                     x={midX - 40}
                     y={midY - 24}
+                    // Radius for rounded corners
                     rx={4}
                     ry={4}
                     width={80}
@@ -263,19 +263,6 @@ export default function PDFViewer() {
 
       <div className="flex justify-between items-center">
         <div className="flex gap-2 my-4">
-          {/* <div className="flex items-center gap-4 my-4 min-w-[240px]">
-            <div className="text-sm text-muted-foreground font-medium whitespace-nowrap">
-              Zoom: {(scale * 100).toFixed(0)}%
-            </div>
-            <Slider
-              min={1}
-              max={10}
-              step={0.05}
-              value={[scale]}
-              onValueChange={([val]) => setScale(val)}
-            />
-          </div> */}
-          <Button onClick={() => setCalibrating(true)}>Calibrate</Button>
           <Button
             variant={"outline"}
             onClick={handleUndo}
@@ -308,9 +295,26 @@ export default function PDFViewer() {
         </div>
       </div>
 
+      <Select
+        defaultValue={defaultCalibrationValue}
+        onValueChange={(value) => setScaleFactor(drawingCalibrations[value])}
+      >
+        <SelectTrigger className="w-[80px] min-w-max flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-primary text-primary bg-background px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1">
+          <Scaling strokeWidth={2} size={16} className="mr-2" /> <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>Select scale</SelectLabel>
+            <SelectItem value="125">1:125</SelectItem>
+            <SelectItem value="100">1:100</SelectItem>
+            <SelectItem value="75">1:75</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
-          <div className="absolute top-6 right-6 z-[1] flex flex-col items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-70 hover:opacity-100 transition-opacity">
+          <div className="absolute top-6 right-6 z-[1] flex flex-col items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
             <Slider
               min={1}
               max={10}
@@ -319,7 +323,7 @@ export default function PDFViewer() {
               onValueChange={([val]) => setScale(val)}
               className="w-[150px]"
             />
-            <div className="text-sm font-medium whitespace-nowrap">
+            <div className="text-xs whitespace-nowrap">
               {(scale * 100).toFixed(0)}%
             </div>
           </div>
@@ -375,11 +379,9 @@ export default function PDFViewer() {
               {measurements.map((m, idx) => (
                 <li key={m.id}>
                   #{idx + 1}: {m.pixelDistance.toFixed(2)} px
-                  {m.realDistance !== null && (
-                    <span className="text-blue-600 ml-2">
-                      ≈ {m.realDistance.toFixed(2)} m
-                    </span>
-                  )}
+                  <span className="text-blue-600 ml-2">
+                    ≈ {(m.pixelDistance * (scaleFactor || 1)).toFixed(2)} m
+                  </span>
                 </li>
               ))}
             </ul>
@@ -388,44 +390,4 @@ export default function PDFViewer() {
       </div>
     </div>
   );
-}
-
-{
-  /* <svg
-  width={"100%"}
-  height="100%"
->
-  <g>
-    <line
-      stroke="red"
-      strokeWidth={4}
-      strokeLinecap="round"
-      opacity={0.5}
-      style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
-    />
-
-    <>
-      <rect
-        rx={4}
-        ry={4}
-        width={80}
-        height={20}
-        fill="white"
-        stroke="black"
-        strokeWidth={0.5}
-        opacity={0.9}
-      />
-      <text
-        fill="black"
-        fontSize={12}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontFamily="sans-serif"
-        pointerEvents="none"
-      >
-        50.12 m
-      </text>
-    </>
-  </g>
-</svg>; */
 }
