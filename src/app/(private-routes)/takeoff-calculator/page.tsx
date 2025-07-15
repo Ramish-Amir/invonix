@@ -6,6 +6,7 @@ import { pdfjs, Document, Page } from "react-pdf";
 import { Redo, Undo, Upload } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { Slider } from "@/components/ui/slider";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -262,15 +263,18 @@ export default function PDFViewer() {
 
       <div className="flex justify-between items-center">
         <div className="flex gap-2 my-4">
-          <Button variant={"outline"} onClick={() => setScale((s) => s + 0.25)}>
-            Zoom In
-          </Button>
-          <Button
-            variant={"outline"}
-            onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
-          >
-            Zoom Out
-          </Button>
+          {/* <div className="flex items-center gap-4 my-4 min-w-[240px]">
+            <div className="text-sm text-muted-foreground font-medium whitespace-nowrap">
+              Zoom: {(scale * 100).toFixed(0)}%
+            </div>
+            <Slider
+              min={1}
+              max={10}
+              step={0.05}
+              value={[scale]}
+              onValueChange={([val]) => setScale(val)}
+            />
+          </div> */}
           <Button onClick={() => setCalibrating(true)}>Calibrate</Button>
           <Button
             variant={"outline"}
@@ -305,41 +309,56 @@ export default function PDFViewer() {
       </div>
 
       {file && (
-        <div
-          className="max-w-[100%] max-h-[100vh] overflow-auto"
-          ref={containerRef}
-        >
-          <Document
-            file={file}
-            onLoadSuccess={onDocumentLoadSuccess}
-            options={options}
+        <div className="relative max-w-[100%] max-h-[100vh] ">
+          <div className="absolute top-6 right-6 z-[1] flex flex-col items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-70 hover:opacity-100 transition-opacity">
+            <Slider
+              min={1}
+              max={10}
+              step={0.05}
+              value={[scale]}
+              onValueChange={([val]) => setScale(val)}
+              className="w-[150px]"
+            />
+            <div className="text-sm font-medium whitespace-nowrap">
+              {(scale * 100).toFixed(0)}%
+            </div>
+          </div>
+          <div
+            className="max-w-[100%] max-h-[100vh] overflow-auto"
+            ref={containerRef}
           >
-            {Array.from(new Array(numPages), (_, index) => (
-              <div
-                key={`pdf_page_${index + 1}`}
-                className="relative mb-6 border"
-                onMouseDown={(e) => handleMouseDown(e, index + 1)}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-              >
-                <Page
-                  pageNumber={index + 1}
-                  scale={scale}
-                  width={
-                    containerWidth
-                      ? Math.min(containerWidth, maxWidth)
-                      : maxWidth
-                  }
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
-                  onRenderSuccess={(page) => {
-                    setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
-                  }}
-                />
-                {renderOverlay(index + 1)}
-              </div>
-            ))}
-          </Document>
+            <Document
+              file={file}
+              onLoadSuccess={onDocumentLoadSuccess}
+              options={options}
+            >
+              {Array.from(new Array(numPages), (_, index) => (
+                <div
+                  key={`pdf_page_${index + 1}`}
+                  className="relative mb-6 border"
+                  onMouseDown={(e) => handleMouseDown(e, index + 1)}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                >
+                  <Page
+                    pageNumber={index + 1}
+                    scale={scale}
+                    width={
+                      containerWidth
+                        ? Math.min(containerWidth, maxWidth)
+                        : maxWidth
+                    }
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                    onRenderSuccess={(page) => {
+                      setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
+                    }}
+                  />
+                  {renderOverlay(index + 1)}
+                </div>
+              ))}
+            </Document>
+          </div>
         </div>
       )}
 
