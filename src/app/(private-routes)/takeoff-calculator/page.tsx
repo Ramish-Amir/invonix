@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Redo, Undo, Upload, Scaling, FileText } from "lucide-react";
+import { Upload, Scaling, FileText } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -15,6 +14,7 @@ import {
   SelectValue,
   SelectGroup,
 } from "@/components/ui/select";
+import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -310,34 +310,12 @@ export default function PDFViewer() {
 
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
-          <div className="absolute top-6 right-6 z-[1] flex gap-2 items-center">
-            <div
-              onClick={handleUndo}
-              className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"
-            >
-              <Undo className="w-4 h-4 text-primary" strokeWidth={3} />
-            </div>
-            <div
-              onClick={handleRedo}
-              aria-disabled={redoStack.length === 0}
-              className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"
-            >
-              <Redo className="w-4 h-4 text-primary" strokeWidth={3} />
-            </div>
-            <div className="flex flex-col h-[46px] items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
-              <Slider
-                min={1}
-                max={10}
-                step={0.05}
-                value={[scale]}
-                onValueChange={([val]) => setScale(val)}
-                className="w-[150px]"
-              />
-              <div className="text-xs text-gray-800 whitespace-nowrap">
-                {(scale * 100).toFixed(0)}%
-              </div>
-            </div>
-          </div>
+          <TakeoffControlMenu
+            scale={scale}
+            setScale={setScale}
+            handleRedo={handleRedo}
+            handleUndo={handleUndo}
+          />
 
           <div
             className="max-w-[100%] max-h-[100vh] overflow-auto"
