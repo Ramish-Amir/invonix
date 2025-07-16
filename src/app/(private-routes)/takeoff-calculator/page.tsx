@@ -1,9 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Redo, Undo, Upload, Scaling } from "lucide-react";
+import { Redo, Undo, Upload, Scaling, FileText } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Slider } from "@/components/ui/slider";
@@ -261,41 +260,51 @@ export default function PDFViewer() {
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
 
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2 my-4"></div>
-        <div className="flex gap-1 items-center">
-          <div>
-            <label className="flex w-max h-[36px] items-center justify-center px-4 py-2 bg-primary text-white rounded-lg cursor-pointer hover:bg-primary-700 transition-colors">
-              <Upload className="w-4 h-4 mr-2" />
-              Upload PDF
-              <input
-                type="file"
-                accept="application/pdf"
-                multiple
-                onChange={onFileChange}
-                className="hidden"
-              />
-            </label>
-          </div>
+      <div className="flex justify-between items-center flex-wrap gap-4 my-4">
+        {/* Left: File Info */}
+        <div className="flex gap-2 items-center text-muted-foreground">
+          <FileText />
+          {typeof file === "string"
+            ? file.split("/").pop()
+            : file?.name ?? "No file selected"}
+        </div>
+
+        {/* Right: Upload + Scale Selector */}
+        <div className="flex items-center gap-2">
+          {/* Upload Button */}
+          <label className="flex h-9 items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
+            <Upload className="w-4 h-4 mr-2" />
+            Upload PDF
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={onFileChange}
+              className="hidden"
+            />
+          </label>
+
+          {/* Scale Selector */}
+          <Select
+            defaultValue={defaultCalibrationValue}
+            onValueChange={(value) =>
+              setScaleFactor(drawingCalibrations[value])
+            }
+          >
+            <SelectTrigger className="w-[80px] min-w-max flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-primary text-primary bg-background px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1">
+              <Scaling strokeWidth={2} size={16} className="mr-2" />{" "}
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Select scale</SelectLabel>
+                <SelectItem value="125">1:125</SelectItem>
+                <SelectItem value="100">1:100</SelectItem>
+                <SelectItem value="75">1:75</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       </div>
-
-      <Select
-        defaultValue={defaultCalibrationValue}
-        onValueChange={(value) => setScaleFactor(drawingCalibrations[value])}
-      >
-        <SelectTrigger className="w-[80px] min-w-max flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-primary text-primary bg-background px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1">
-          <Scaling strokeWidth={2} size={16} className="mr-2" /> <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectLabel>Select scale</SelectLabel>
-            <SelectItem value="125">1:125</SelectItem>
-            <SelectItem value="100">1:100</SelectItem>
-            <SelectItem value="75">1:75</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
 
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
@@ -368,11 +377,6 @@ export default function PDFViewer() {
       )}
 
       <div className="mt-6">
-        {scaleFactor && (
-          <div className="text-green-600 font-semibold mb-2">
-            ✅ Calibrated: 1 px = {scaleFactor.toFixed(4)} meters
-          </div>
-        )}
         {measurements.length > 0 && (
           <div>
             <h2 className="font-semibold mb-2">📐 Measurements</h2>
