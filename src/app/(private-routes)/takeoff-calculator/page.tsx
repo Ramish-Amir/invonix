@@ -262,22 +262,7 @@ export default function PDFViewer() {
       <h2 className="text-gray-500">Take-off Calculator</h2>
 
       <div className="flex justify-between items-center">
-        <div className="flex gap-2 my-4">
-          <Button
-            variant={"outline"}
-            onClick={handleUndo}
-            disabled={history.length === 0}
-          >
-            <Undo className="w-4 h-4" />
-          </Button>
-          <Button
-            variant={"outline"}
-            onClick={handleRedo}
-            disabled={redoStack.length === 0}
-          >
-            <Redo className="w-4 h-4" />
-          </Button>
-        </div>
+        <div className="flex gap-2 my-4"></div>
         <div className="flex gap-1 items-center">
           <div>
             <label className="flex w-max h-[36px] items-center justify-center px-4 py-2 bg-primary text-white rounded-lg cursor-pointer hover:bg-primary-700 transition-colors">
@@ -314,19 +299,35 @@ export default function PDFViewer() {
 
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
-          <div className="absolute top-6 right-6 z-[1] flex flex-col items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
-            <Slider
-              min={1}
-              max={10}
-              step={0.05}
-              value={[scale]}
-              onValueChange={([val]) => setScale(val)}
-              className="w-[150px]"
-            />
-            <div className="text-xs whitespace-nowrap">
-              {(scale * 100).toFixed(0)}%
+          <div className="absolute top-6 right-6 z-[1] flex gap-2 items-center">
+            <div
+              onClick={handleUndo}
+              className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"
+            >
+              <Undo className="w-4 h-4 text-primary" strokeWidth={3} />
+            </div>
+            <div
+              onClick={handleRedo}
+              aria-disabled={redoStack.length === 0}
+              className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"
+            >
+              <Redo className="w-4 h-4 text-primary" strokeWidth={3} />
+            </div>
+            <div className="flex flex-col h-[46px] items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
+              <Slider
+                min={1}
+                max={10}
+                step={0.05}
+                value={[scale]}
+                onValueChange={([val]) => setScale(val)}
+                className="w-[150px]"
+              />
+              <div className="text-xs whitespace-nowrap">
+                {(scale * 100).toFixed(0)}%
+              </div>
             </div>
           </div>
+
           <div
             className="max-w-[100%] max-h-[100vh] overflow-auto"
             ref={containerRef}
