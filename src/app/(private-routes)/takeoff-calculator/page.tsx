@@ -2,19 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Upload, Scaling, FileText } from "lucide-react";
+import { Upload, FileText } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-  SelectGroup,
-} from "@/components/ui/select";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
+import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callibration-scale";
+import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
+import { MeasurementList } from "@/components/takeoff-calculator/measurement-list";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -285,26 +279,7 @@ export default function PDFViewer() {
             />
           </label>
 
-          {/* Scale Selector */}
-          <Select
-            defaultValue={defaultCalibrationValue}
-            onValueChange={(value) =>
-              setScaleFactor(drawingCalibrations[value])
-            }
-          >
-            <SelectTrigger className="w-[80px] min-w-max flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-primary text-primary bg-background px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1">
-              <Scaling strokeWidth={2} size={16} className="mr-2" />{" "}
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Select scale</SelectLabel>
-                <SelectItem value="125">1:125</SelectItem>
-                <SelectItem value="100">1:100</SelectItem>
-                <SelectItem value="75">1:75</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <DrawingCallibrationScale setScaleFactor={setScaleFactor} />
         </div>
       </div>
 
@@ -348,7 +323,20 @@ export default function PDFViewer() {
                       setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
                     }}
                   />
-                  {renderOverlay(index + 1)}
+
+                  <MeasurementOverlay
+                    pageNumber={index + 1}
+                    measurements={measurements}
+                    scale={scale}
+                    scaleFactor={scaleFactor}
+                    hoveredId={hoveredId}
+                    isDragging={isDragging}
+                    dragStart={dragStart}
+                    dragEnd={dragEnd}
+                    dragPage={dragPage}
+                    setHoveredId={setHoveredId}
+                    pdfWidth={pdfWidth}
+                  />
                 </div>
               ))}
             </Document>
@@ -358,19 +346,10 @@ export default function PDFViewer() {
 
       <div className="mt-6">
         {measurements.length > 0 && (
-          <div>
-            <h2 className="font-semibold mb-2">📐 Measurements</h2>
-            <ul className="text-sm space-y-1">
-              {measurements.map((m, idx) => (
-                <li key={m.id}>
-                  #{idx + 1}: {m.pixelDistance.toFixed(2)} px
-                  <span className="text-blue-600 ml-2">
-                    ≈ {(m.pixelDistance * (scaleFactor || 1)).toFixed(2)} m
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <MeasurementList
+            measurements={measurements}
+            scaleFactor={scaleFactor}
+          />
         )}
       </div>
     </div>
