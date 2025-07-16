@@ -54,7 +54,9 @@ const maxWidth = 800;
 export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [file, setFile] = useState<PDFFile>("/sample.pdf");
+  const [file, setFile] = useState<PDFFile>(
+    "/Level1 Floor Plan - Hydronic.pdf"
+  );
   const [numPages, setNumPages] = useState<number>();
   const [scale, setScale] = useState(1.25); // This the zoom level, 1.25 is 125%
   const [containerWidth, setContainerWidth] = useState<number>();
@@ -331,7 +333,7 @@ export default function PDFViewer() {
                 onValueChange={([val]) => setScale(val)}
                 className="w-[150px]"
               />
-              <div className="text-xs whitespace-nowrap">
+              <div className="text-xs text-gray-800 whitespace-nowrap">
                 {(scale * 100).toFixed(0)}%
               </div>
             </div>
