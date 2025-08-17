@@ -9,6 +9,10 @@ import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu
 import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callibration-scale";
 import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
 import { MeasurementList } from "@/components/takeoff-calculator/measurement-list";
+import {
+  DEFAULT_CALLIBRATION_VALUE,
+  DrawingCalibrations,
+} from "@/lib/drawingCallibrations";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -20,14 +24,6 @@ const options = {
   standardFontDataUrl: "/standard_fonts/",
   wasmUrl: "/wasm/",
 };
-
-const drawingCalibrations: Record<string, number> = {
-  "125": 0.1661, // 1:125 scale => 1 px = 0.1661 m
-  "100": 0.125, // 1:100 scale => 1 px = 0.125 m
-  "75": 0.0933, // 1:75 scale => 1 px = 0.0933 m
-};
-
-const defaultCalibrationValue = "125";
 
 type PDFFile = string | File | null;
 
@@ -56,8 +52,9 @@ export default function PDFViewer() {
   const [containerWidth, setContainerWidth] = useState<number>();
   const [pdfWidth, setPdfWidth] = useState<number>(0);
   const [scaleFactor, setScaleFactor] = useState<number | null>(
-    drawingCalibrations[defaultCalibrationValue]
+    DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
   ); // Scale factor for converting pixels to meters
+  const [viewportDimensions, setViewportDimensions] = useState<string>("");
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
@@ -193,7 +190,11 @@ export default function PDFViewer() {
             />
           </label>
 
-          <DrawingCallibrationScale setScaleFactor={setScaleFactor} />
+          <DrawingCallibrationScale
+            setScaleFactor={setScaleFactor}
+            viewportDimensions={viewportDimensions}
+            setViewportDimensions={setViewportDimensions}
+          />
         </div>
       </div>
 
@@ -235,6 +236,12 @@ export default function PDFViewer() {
                     renderTextLayer={false}
                     onRenderSuccess={(page) => {
                       setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
+                      const viewport = page.getViewport({ scale: 1 });
+                      setViewportDimensions(
+                        `${(viewport.width / 72).toFixed(0)}x${(
+                          viewport.height / 72
+                        ).toFixed(0)}`
+                      );
                     }}
                   />
 
