@@ -54,7 +54,13 @@ export default function PDFViewer() {
   const [scaleFactor, setScaleFactor] = useState<number | null>(
     DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
   ); // Scale factor for converting pixels to meters
-  const [viewportDimensions, setViewportDimensions] = useState<string>("");
+  const [viewportDimensions, setViewportDimensions] = useState<{
+    width: number;
+    height: number;
+  }>({
+    width: 0,
+    height: 0,
+  });
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
@@ -190,11 +196,7 @@ export default function PDFViewer() {
             />
           </label>
 
-          <DrawingCallibrationScale
-            setScaleFactor={setScaleFactor}
-            viewportDimensions={viewportDimensions}
-            setViewportDimensions={setViewportDimensions}
-          />
+          <DrawingCallibrationScale setScaleFactor={setScaleFactor} />
         </div>
       </div>
 
@@ -206,7 +208,9 @@ export default function PDFViewer() {
             handleRedo={handleRedo}
             handleUndo={handleUndo}
           />
-
+          <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
+            <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
+          </div>
           <div
             className="max-w-[100%] max-h-[100vh] overflow-auto"
             ref={containerRef}
@@ -237,11 +241,10 @@ export default function PDFViewer() {
                     onRenderSuccess={(page) => {
                       setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
                       const viewport = page.getViewport({ scale: 1 });
-                      setViewportDimensions(
-                        `${(viewport.width / 72).toFixed(0)}x${(
-                          viewport.height / 72
-                        ).toFixed(0)}`
-                      );
+                      setViewportDimensions({
+                        width: Number((viewport.width / 72).toFixed(0)),
+                        height: Number((viewport.height / 72).toFixed(0)),
+                      });
                     }}
                   />
 
