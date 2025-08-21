@@ -49,6 +49,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
         className="absolute top-0 left-0 pointer-events-auto"
         width={pdfWidth}
         height="100%"
+        cursor={"crosshair"}
       >
         {pageMeasurements.map((m) => {
           const [p1, p2] = m.points;
@@ -59,19 +60,34 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
 
           return (
             <g key={m.id}>
+              <defs>
+                <marker
+                  id="arrow"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="4"
+                  markerHeight="4"
+                  orient="auto-start-reverse"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="red" />
+                </marker>
+              </defs>
               <line
                 x1={x1}
                 y1={y1}
                 x2={x2}
                 y2={y2}
+                markerStart="url(#arrow)"
+                markerEnd="url(#arrow)"
                 stroke="red"
                 // Update the stroke width based on a multiple of scale
-                strokeWidth={(2 * scale) / 2}
-                strokeLinecap="round"
-                opacity={0.7}
+                strokeWidth={Math.min(3, scale * 1.2)}
+                opacity={0.8}
                 onMouseEnter={() => setHoveredId(m.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
+                style={{ cursor: "crosshair", pointerEvents: "visiblePainted" }}
               />
             </g>
           );
