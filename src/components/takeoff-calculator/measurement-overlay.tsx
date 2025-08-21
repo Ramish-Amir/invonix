@@ -44,12 +44,57 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
   );
 
   return (
-    <svg
-      className="absolute top-0 left-0 pointer-events-auto"
-      width={pdfWidth}
-      height="100%"
-    >
+    <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+      <svg
+        className="absolute top-0 left-0 pointer-events-auto"
+        width={pdfWidth}
+        height="100%"
+      >
+        {pageMeasurements.map((m) => {
+          const [p1, p2] = m.points;
+          const x1 = p1.x * scale;
+          const y1 = p1.y * scale;
+          const x2 = p2.x * scale;
+          const y2 = p2.y * scale;
+
+          return (
+            <g key={m.id}>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="red"
+                // Update the stroke width based on a multiple of scale
+                strokeWidth={(2 * scale) / 2}
+                strokeLinecap="round"
+                opacity={0.7}
+                onMouseEnter={() => setHoveredId(m.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
+              />
+            </g>
+          );
+        })}
+
+        {/* Drag preview line */}
+        {isDragging && dragStart && dragEnd && dragPage === pageNumber && (
+          <line
+            x1={dragStart.x * scale}
+            y1={dragStart.y * scale}
+            x2={dragEnd.x * scale}
+            y2={dragEnd.y * scale}
+            stroke="blue"
+            strokeWidth={2}
+            strokeDasharray="5,5"
+            opacity={0.7}
+          />
+        )}
+      </svg>
+
+      {/* HTML labels (outside of SVG) */}
       {pageMeasurements.map((m) => {
+        if (hoveredId !== m.id) return null;
         const [p1, p2] = m.points;
         const x1 = p1.x * scale;
         const y1 = p1.y * scale;
@@ -60,64 +105,29 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
         const label = `${(m.pixelDistance * (scaleFactor || 1)).toFixed(2)} m`;
 
         return (
-          <g key={m.id}>
-            <line
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke="red"
-              strokeWidth={4}
-              strokeLinecap="round"
-              opacity={0.5}
-              onMouseEnter={() => setHoveredId(m.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
-            />
-            {hoveredId === m.id && (
-              <>
-                <rect
-                  x={midX - 40}
-                  y={midY - 24}
-                  rx={4}
-                  ry={4}
-                  width={80}
-                  height={20}
-                  fill="rgb(47, 130, 172)"
-                  stroke="rgb(47, 130, 172)"
-                  strokeWidth={0.5}
-                  opacity={0.8}
-                />
-                <text
-                  x={midX}
-                  y={midY - 10}
-                  fill="white"
-                  fontSize={12}
-                  textAnchor="middle"
-                  fontFamily="sans-serif"
-                  pointerEvents="none"
-                >
-                  {label}
-                </text>
-              </>
-            )}
-          </g>
+          <div
+            key={`label-${m.id}`}
+            className="absolute flex items-center gap-2 w-max bg-primary text-white text-xs px-2 py-1 rounded shadow"
+            style={{
+              left: midX,
+              top: midY - 30, // position above the line
+              transform: "translateX(-50%)", // center horizontally
+              pointerEvents: "auto", // so button is clickable
+            }}
+          >
+            <span>{label}</span>
+            {/* <button
+              onClick={() => {
+                // TODO: hook up delete functionality
+                console.log("Delete measurement", m.id);
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white px-1 rounded"
+            >
+              ✕
+            </button> */}
+          </div>
         );
       })}
-
-      {/* Drag preview line */}
-      {isDragging && dragStart && dragEnd && dragPage === pageNumber && (
-        <line
-          x1={dragStart.x * scale}
-          y1={dragStart.y * scale}
-          x2={dragEnd.x * scale}
-          y2={dragEnd.y * scale}
-          stroke="blue"
-          strokeWidth={2}
-          strokeDasharray="5,5"
-          opacity={0.7}
-        />
-      )}
-    </svg>
+    </div>
   );
 };
