@@ -1,5 +1,5 @@
-import React from "react";
-import { Pin, PinOff } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Pin, PinOff, Tag } from "lucide-react";
 
 export interface Point {
   x: number;
@@ -18,6 +18,12 @@ export interface Measurement {
   };
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface MeasurementOverlayProps {
   pageNumber: number;
   measurements: Measurement[];
@@ -31,6 +37,8 @@ interface MeasurementOverlayProps {
   dragPage: number | null;
   setHoveredId: (id: number | null) => void;
   onTogglePin: (id: number) => void;
+  onTagChange?: (measurementId: number, tag: Tag | null) => void;
+  tags: Tag[];
   pdfWidth: number;
 }
 
@@ -47,11 +55,36 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
   dragPage,
   setHoveredId,
   onTogglePin,
+  onTagChange,
+  tags,
   pdfWidth,
 }) => {
+  const [tagSelectorForId, setTagSelectorForId] = useState<number | null>(null);
+  const tagSelectorRef = useRef<HTMLDivElement>(null);
+
   const pageMeasurements = measurements.filter(
     (m) => m.points[0].page === pageNumber && m.points[1].page === pageNumber
   );
+
+  // Close tag selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        tagSelectorRef.current &&
+        !tagSelectorRef.current.contains(event.target as Node)
+      ) {
+        setTagSelectorForId(null);
+      }
+    };
+
+    if (tagSelectorForId !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [tagSelectorForId]);
 
   return (
     <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
@@ -140,10 +173,12 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
 
         const isPinned = pinnedIds.has(m.id);
 
+        const isShowingTagSelector = tagSelectorForId === m.id;
+
         return (
           <div
             key={`label-${m.id}`}
-            className="absolute flex items-center gap-2 w-max bg-primary text-white text-xs px-2 py-1 rounded shadow"
+            className="absolute flex flex-col gap-1"
             style={{
               left: midX,
               top: midY - 30, // position above the line
@@ -151,27 +186,78 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
               pointerEvents: "auto", // so button is clickable
             }}
           >
-            <span>{label}</span>
-            {m.tag && (
-              <div
-                className="w-3 h-3 rounded-full border border-white"
-                style={{ backgroundColor: m.tag.color }}
-              />
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePin(m.id);
-              }}
-              className="hover:bg-white/20 rounded p-0.5 transition-colors"
-              title={isPinned ? "Unpin measurement" : "Pin measurement"}
-            >
-              {isPinned ? (
-                <PinOff className="w-3 h-3" />
-              ) : (
-                <Pin className="w-3 h-3" />
+            {/* Main label */}
+            <div className="flex items-center gap-2 w-max bg-primary text-white text-xs px-2 py-1 rounded shadow">
+              <span
+                className="cursor-pointer hover:bg-white/20 rounded px-1 transition-colors"
+                onClick={() =>
+                  setTagSelectorForId(isShowingTagSelector ? null : m.id)
+                }
+                title="Click to change tag"
+              >
+                {label}
+              </span>
+              {m.tag && (
+                <div
+                  className="w-3 h-3 rounded-full border border-white"
+                  style={{ backgroundColor: m.tag.color }}
+                />
               )}
-            </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePin(m.id);
+                }}
+                className="hover:bg-white/20 rounded p-0.5 transition-colors"
+                title={isPinned ? "Unpin measurement" : "Pin measurement"}
+              >
+                {isPinned ? (
+                  <PinOff className="w-3 h-3" />
+                ) : (
+                  <Pin className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+
+            {/* Tag selector dropdown */}
+            {isShowingTagSelector && onTagChange && (
+              <div
+                ref={tagSelectorRef}
+                className="bg-white border border-gray-200 rounded-md shadow-lg p-2 min-w-[120px]"
+              >
+                <div className="text-xs text-gray-600 mb-2 font-medium">
+                  Select Tag:
+                </div>
+                <div className="space-y-1">
+                  {tags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      onClick={() => {
+                        onTagChange(m.id, tag);
+                        setTagSelectorForId(null);
+                      }}
+                      className="flex items-center gap-2 w-full text-left px-2 py-1 rounded hover:bg-gray-100 text-xs"
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full border border-gray-300"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span>{tag.name}</span>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      onTagChange(m.id, null);
+                      setTagSelectorForId(null);
+                    }}
+                    className="flex items-center gap-2 w-full text-left px-2 py-1 rounded hover:bg-gray-100 text-xs text-gray-500"
+                  >
+                    <Tag className="w-3 h-3" />
+                    <span>Remove tag</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

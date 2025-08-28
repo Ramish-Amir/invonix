@@ -327,6 +327,8 @@ export default function PDFViewer() {
                     dragPage={dragPage}
                     setHoveredId={setHoveredId}
                     onTogglePin={handleTogglePin}
+                    onTagChange={handleMeasurementTagChange}
+                    tags={tags}
                     pdfWidth={pdfWidth}
                   />
                 </div>

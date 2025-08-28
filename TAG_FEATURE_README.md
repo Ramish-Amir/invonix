@@ -29,6 +29,7 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 - **Visual Indicators**: Pinned measurements have thicker lines and higher opacity
 - **Pin Management**: Use the pin/unpin button in labels or the "Clear All Pins" button in the control menu
 - **Persistent Display**: Pinned labels remain visible even when not hovering
+- **Quick Tag Changes**: Click on the measurement value in pinned labels to change the tag directly
 
 ### Tag Selection
 
@@ -57,6 +58,7 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 2. Draw new measurements - they will automatically use the selected tag
 3. For existing measurements without tags, click on any tag badge to assign it
 4. Click on an existing tag badge to remove the tag
+5. **Quick Tag Changes**: Click on the measurement value in pinned labels to open a tag selector dropdown
 
 ### Viewing Tagged Measurements
 
@@ -64,6 +66,7 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 - **Measurement List**: Shows tag badges next to each measurement
 - **Summary Section**: Groups measurements by tag with total lengths
 - **Pinned Labels**: Click measurements to keep their labels visible permanently
+- **Inline Tag Editing**: Click measurement values in pinned labels to change tags quickly
 
 ## Technical Implementation
 
