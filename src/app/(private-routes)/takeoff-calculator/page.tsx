@@ -73,6 +73,7 @@ export default function PDFViewer() {
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
 
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
 
   // Tag state
   const [tags, setTags] = useState<Tag[]>([
@@ -109,6 +110,7 @@ export default function PDFViewer() {
     setScaleFactor(null);
     setHistory([]);
     setRedoStack([]);
+    setPinnedIds(new Set());
   }
 
   function onDocumentLoadSuccess({ numPages: nextNumPages }: any) {
@@ -208,6 +210,18 @@ export default function PDFViewer() {
     );
   };
 
+  const handleTogglePin = (measurementId: number) => {
+    setPinnedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(measurementId)) {
+        newSet.delete(measurementId);
+      } else {
+        newSet.add(measurementId);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
@@ -257,6 +271,8 @@ export default function PDFViewer() {
             setScale={setScale}
             handleRedo={handleRedo}
             handleUndo={handleUndo}
+            pinnedCount={pinnedIds.size}
+            onClearAllPins={() => setPinnedIds(new Set())}
           />
           <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
             <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
@@ -304,11 +320,13 @@ export default function PDFViewer() {
                     scale={scale}
                     scaleFactor={scaleFactor}
                     hoveredId={hoveredId}
+                    pinnedIds={pinnedIds}
                     isDragging={isDragging}
                     dragStart={dragStart}
                     dragEnd={dragEnd}
                     dragPage={dragPage}
                     setHoveredId={setHoveredId}
+                    onTogglePin={handleTogglePin}
                     pdfWidth={pdfWidth}
                   />
                 </div>

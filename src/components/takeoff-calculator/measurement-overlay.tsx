@@ -1,4 +1,5 @@
 import React from "react";
+import { Pin, PinOff } from "lucide-react";
 
 export interface Point {
   x: number;
@@ -23,11 +24,13 @@ interface MeasurementOverlayProps {
   scale: number;
   scaleFactor: number | null;
   hoveredId: number | null;
+  pinnedIds: Set<number>;
   isDragging: boolean;
   dragStart: Point | null;
   dragEnd: Point | null;
   dragPage: number | null;
   setHoveredId: (id: number | null) => void;
+  onTogglePin: (id: number) => void;
   pdfWidth: number;
 }
 
@@ -37,11 +40,13 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
   scale,
   scaleFactor,
   hoveredId,
+  pinnedIds,
   isDragging,
   dragStart,
   dragEnd,
   dragPage,
   setHoveredId,
+  onTogglePin,
   pdfWidth,
 }) => {
   const pageMeasurements = measurements.filter(
@@ -62,6 +67,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
           const y1 = p1.y * scale;
           const x2 = p2.x * scale;
           const y2 = p2.y * scale;
+          const isPinned = pinnedIds.has(m.id);
 
           return (
             <g key={m.id}>
@@ -91,11 +97,14 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                 markerEnd={`url(#arrow-${m.id})`}
                 stroke={m.tag?.color || "red"}
                 // Update the stroke width based on a multiple of scale
-                strokeWidth={Math.min(3, scale * 1.2)}
-                opacity={0.8}
+                strokeWidth={
+                  isPinned ? Math.min(4, scale * 1.5) : Math.min(3, scale * 1.2)
+                }
+                opacity={isPinned ? 1 : 0.8}
                 onMouseEnter={() => setHoveredId(m.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                style={{ cursor: "crosshair", pointerEvents: "visiblePainted" }}
+                onClick={() => onTogglePin(m.id)}
+                style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
               />
             </g>
           );
@@ -118,7 +127,8 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
 
       {/* HTML labels (outside of SVG) */}
       {pageMeasurements.map((m) => {
-        if (hoveredId !== m.id) return null;
+        const shouldShowLabel = hoveredId === m.id || pinnedIds.has(m.id);
+        if (!shouldShowLabel) return null;
         const [p1, p2] = m.points;
         const x1 = p1.x * scale;
         const y1 = p1.y * scale;
@@ -127,6 +137,8 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
         const label = `${(m.pixelDistance * (scaleFactor || 1)).toFixed(2)} m`;
+
+        const isPinned = pinnedIds.has(m.id);
 
         return (
           <div
@@ -146,15 +158,20 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                 style={{ backgroundColor: m.tag.color }}
               />
             )}
-            {/* <button
-              onClick={() => {
-                // TODO: hook up delete functionality
-                console.log("Delete measurement", m.id);
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin(m.id);
               }}
-              className="bg-red-500 hover:bg-red-600 text-white px-1 rounded"
+              className="hover:bg-white/20 rounded p-0.5 transition-colors"
+              title={isPinned ? "Unpin measurement" : "Pin measurement"}
             >
-              ✕
-            </button> */}
+              {isPinned ? (
+                <PinOff className="w-3 h-3" />
+              ) : (
+                <Pin className="w-3 h-3" />
+              )}
+            </button>
           </div>
         );
       })}

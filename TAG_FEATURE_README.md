@@ -22,6 +22,14 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
   - Measurement list displays tag badges
 - **Tag Modification**: Users can change or remove tags from existing measurements
 
+### Measurement Pinning
+
+- **Hover Labels**: Measurement values and tags are displayed when hovering over measurement lines
+- **Click to Pin**: Click on any measurement line to pin its label permanently
+- **Visual Indicators**: Pinned measurements have thicker lines and higher opacity
+- **Pin Management**: Use the pin/unpin button in labels or the "Clear All Pins" button in the control menu
+- **Persistent Display**: Pinned labels remain visible even when not hovering
+
 ### Tag Selection
 
 - **Active Tag Display**: The currently selected tag is highlighted in the tag selector
@@ -55,6 +63,7 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 - **Measurement Lines**: Colored according to their assigned tag
 - **Measurement List**: Shows tag badges next to each measurement
 - **Summary Section**: Groups measurements by tag with total lengths
+- **Pinned Labels**: Click measurements to keep their labels visible permanently
 
 ## Technical Implementation
 
@@ -63,7 +72,8 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 - `TagSelector`: Manages tag creation, selection, and deletion
 - `MeasurementList`: Displays measurements with tag management
 - `MeasurementSummary`: Shows grouped measurements by tag
-- `MeasurementOverlay`: Renders colored measurement lines
+- `MeasurementOverlay`: Renders colored measurement lines with pin functionality
+- `TakeoffControlMenu`: Includes pin management controls
 
 ### Data Structure
 

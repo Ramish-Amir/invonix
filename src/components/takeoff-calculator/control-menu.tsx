@@ -1,4 +1,4 @@
-import { Redo, Undo } from "lucide-react";
+import { Redo, Undo, PinOff } from "lucide-react";
 import { Slider } from "../ui/slider";
 
 type TakeoffControlMenuProps = {
@@ -6,6 +6,8 @@ type TakeoffControlMenuProps = {
   setScale: (newValue: number) => void;
   handleUndo: () => void;
   handleRedo: () => void;
+  pinnedCount: number;
+  onClearAllPins: () => void;
 };
 
 export const TakeoffControlMenu = ({
@@ -13,6 +15,8 @@ export const TakeoffControlMenu = ({
   setScale,
   handleRedo,
   handleUndo,
+  pinnedCount,
+  onClearAllPins,
 }: TakeoffControlMenuProps) => {
   return (
     <div className="absolute top-6 right-6 z-[1] flex gap-2 items-center">
@@ -41,6 +45,19 @@ export const TakeoffControlMenu = ({
           {(scale * 100).toFixed(0)}%
         </div>
       </div>
+
+      {pinnedCount > 0 && (
+        <div
+          onClick={onClearAllPins}
+          className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
+          title="Clear all pinned measurements"
+        >
+          <PinOff className="w-4 h-4 text-primary" strokeWidth={3} />
+          <span className="ml-1 text-xs text-primary font-medium">
+            {pinnedCount}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
