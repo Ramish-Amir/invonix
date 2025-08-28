@@ -10,6 +10,11 @@ export interface Measurement {
   id: number;
   points: [Point, Point];
   pixelDistance: number;
+  tag?: {
+    id: string;
+    name: string;
+    color: string;
+  };
 }
 
 interface MeasurementOverlayProps {
@@ -62,7 +67,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
             <g key={m.id}>
               <defs>
                 <marker
-                  id="arrow"
+                  id={`arrow-${m.id}`}
                   viewBox="0 0 10 10"
                   refX="8"
                   refY="5"
@@ -71,7 +76,10 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                   orient="auto-start-reverse"
                   markerUnits="strokeWidth"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="red" />
+                  <path
+                    d="M 0 0 L 10 5 L 0 10 z"
+                    fill={m.tag?.color || "red"}
+                  />
                 </marker>
               </defs>
               <line
@@ -79,9 +87,9 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                markerStart="url(#arrow)"
-                markerEnd="url(#arrow)"
-                stroke="red"
+                markerStart={`url(#arrow-${m.id})`}
+                markerEnd={`url(#arrow-${m.id})`}
+                stroke={m.tag?.color || "red"}
                 // Update the stroke width based on a multiple of scale
                 strokeWidth={Math.min(3, scale * 1.2)}
                 opacity={0.8}
@@ -132,6 +140,12 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
             }}
           >
             <span>{label}</span>
+            {m.tag && (
+              <div
+                className="w-3 h-3 rounded-full border border-white"
+                style={{ backgroundColor: m.tag.color }}
+              />
+            )}
             {/* <button
               onClick={() => {
                 // TODO: hook up delete functionality

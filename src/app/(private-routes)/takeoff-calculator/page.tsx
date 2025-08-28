@@ -9,6 +9,8 @@ import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu
 import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callibration-scale";
 import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
 import { MeasurementList } from "@/components/takeoff-calculator/measurement-list";
+import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
+import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
 import {
   DEFAULT_CALLIBRATION_VALUE,
   DrawingCalibrations,
@@ -37,6 +39,11 @@ interface Measurement {
   id: number;
   points: [Point, Point];
   pixelDistance: number;
+  tag?: {
+    id: string;
+    name: string;
+    color: string;
+  };
 }
 
 const maxWidth = 800;
@@ -66,6 +73,14 @@ export default function PDFViewer() {
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
 
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+
+  // Tag state
+  const [tags, setTags] = useState<Tag[]>([
+    { id: "1", name: "10mm", color: "#ef4444" },
+    { id: "2", name: "20mm", color: "#3b82f6" },
+    { id: "3", name: "30mm", color: "#22c55e" },
+  ]);
+  const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -139,6 +154,7 @@ export default function PDFViewer() {
       id: Date.now(),
       points: [p1, p2],
       pixelDistance,
+      tag: selectedTag || undefined,
     };
 
     const updatedMeasurements = [...measurements, newMeasurement];
@@ -167,6 +183,29 @@ export default function PDFViewer() {
     setMeasurements(next);
     setHistory((h) => [...h, measurements]);
     setRedoStack((r) => r.slice(1));
+  };
+
+  const handleTagCreate = (newTag: Tag) => {
+    setTags((prev) => [...prev, newTag]);
+    setSelectedTag(newTag);
+  };
+
+  const handleTagDelete = (tagId: string) => {
+    setTags((prev) => prev.filter((tag) => tag.id !== tagId));
+    if (selectedTag?.id === tagId) {
+      setSelectedTag(null);
+    }
+  };
+
+  const handleMeasurementTagChange = (
+    measurementId: number,
+    tag: Tag | null
+  ) => {
+    setMeasurements((prev) =>
+      prev.map((m) =>
+        m.id === measurementId ? { ...m, tag: tag || undefined } : m
+      )
+    );
   };
 
   return (
@@ -198,6 +237,17 @@ export default function PDFViewer() {
 
           <DrawingCallibrationScale setScaleFactor={setScaleFactor} />
         </div>
+      </div>
+
+      {/* Tag Selector */}
+      <div className="mb-4">
+        <TagSelector
+          tags={tags}
+          selectedTag={selectedTag}
+          onTagSelect={setSelectedTag}
+          onTagCreate={handleTagCreate}
+          onTagDelete={handleTagDelete}
+        />
       </div>
 
       {file && (
@@ -270,10 +320,19 @@ export default function PDFViewer() {
 
       <div className="mt-6">
         {measurements.length > 0 && (
-          <MeasurementList
-            measurements={measurements}
-            scaleFactor={scaleFactor}
-          />
+          <>
+            <MeasurementList
+              measurements={measurements}
+              scaleFactor={scaleFactor}
+              tags={tags}
+              onMeasurementTagChange={handleMeasurementTagChange}
+            />
+            <MeasurementSummary
+              measurements={measurements}
+              scaleFactor={scaleFactor}
+              tags={tags}
+            />
+          </>
         )}
       </div>
     </div>

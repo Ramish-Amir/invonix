@@ -1,0 +1,98 @@
+# Takeoff Calculator Tagging Feature
+
+## Overview
+
+The takeoff calculator now includes a comprehensive tagging system that allows users to categorize and organize their measurements with custom tags.
+
+## Features
+
+### Tag Management
+
+- **Create Custom Tags**: Users can create tags with custom names and colors
+- **Pre-defined Tags**: The system comes with default tags (10mm, 20mm, 30mm) for immediate use
+- **Color-coded Tags**: Each tag has a unique color for easy visual identification
+- **Delete Tags**: Remove unused tags from the system
+
+### Measurement Tagging
+
+- **Automatic Tag Assignment**: New measurements are automatically assigned the currently selected tag
+- **Visual Tag Indicators**:
+  - Measurement lines are colored according to their assigned tag
+  - Hover labels show tag indicators
+  - Measurement list displays tag badges
+- **Tag Modification**: Users can change or remove tags from existing measurements
+
+### Tag Selection
+
+- **Active Tag Display**: The currently selected tag is highlighted in the tag selector
+- **Tag Switching**: Click on any tag to make it the active tag for new measurements
+- **No Tag Option**: Deselect all tags to create untagged measurements
+
+### Summary and Analytics
+
+- **Tag-based Grouping**: Measurements are automatically grouped by their assigned tags
+- **Length Summaries**: View total length for each tag category
+- **Overall Totals**: See the complete measurement summary across all tags
+
+## Usage
+
+### Creating a New Tag
+
+1. Click the "Add Tag" button in the tag selector
+2. Enter a tag name (e.g., "15mm", "Hot Water", "Cold Water")
+3. Select a color from the color palette
+4. Press Enter or click "Add"
+
+### Assigning Tags to Measurements
+
+1. Select a tag from the tag selector (it will be highlighted)
+2. Draw new measurements - they will automatically use the selected tag
+3. For existing measurements without tags, click on any tag badge to assign it
+4. Click on an existing tag badge to remove the tag
+
+### Viewing Tagged Measurements
+
+- **Measurement Lines**: Colored according to their assigned tag
+- **Measurement List**: Shows tag badges next to each measurement
+- **Summary Section**: Groups measurements by tag with total lengths
+
+## Technical Implementation
+
+### Components
+
+- `TagSelector`: Manages tag creation, selection, and deletion
+- `MeasurementList`: Displays measurements with tag management
+- `MeasurementSummary`: Shows grouped measurements by tag
+- `MeasurementOverlay`: Renders colored measurement lines
+
+### Data Structure
+
+```typescript
+interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+interface Measurement {
+  id: number;
+  points: [Point, Point];
+  pixelDistance: number;
+  tag?: Tag;
+}
+```
+
+### State Management
+
+- Tags are stored in component state
+- Selected tag determines the tag for new measurements
+- Measurement tags are updated in real-time
+- Tag changes are reflected immediately in the UI
+
+## Benefits
+
+- **Organization**: Categorize measurements by type, size, or purpose
+- **Visual Clarity**: Color-coded measurements for easy identification
+- **Analysis**: Group and summarize measurements by category
+- **Flexibility**: Create custom tags for specific project needs
+- **Efficiency**: Quick tag assignment and modification
