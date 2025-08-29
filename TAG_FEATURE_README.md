@@ -30,6 +30,7 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 - **Pin Management**: Use the pin/unpin button in labels or the "Clear All Pins" button in the control menu
 - **Persistent Display**: Pinned labels remain visible even when not hovering
 - **Quick Tag Changes**: Click on the measurement value in pinned labels to change the tag directly
+- **Quick Deletion**: Delete button appears in pinned labels for easy measurement removal
 
 ### Tag Selection
 
@@ -60,6 +61,13 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 4. Click on an existing tag badge to remove the tag
 5. **Quick Tag Changes**: Click on the measurement value in pinned labels to open a tag selector dropdown
 
+### Managing Measurements
+
+1. **Pin Measurements**: Click on measurement lines to pin their labels
+2. **Change Tags**: Click measurement values in pinned labels to change tags
+3. **Delete Measurements**: Use the trash icon in pinned labels to delete measurements
+4. **Undo/Redo**: Use the undo/redo buttons in the control menu
+
 ### Viewing Tagged Measurements
 
 - **Measurement Lines**: Colored according to their assigned tag
@@ -67,6 +75,7 @@ The takeoff calculator now includes a comprehensive tagging system that allows u
 - **Summary Section**: Groups measurements by tag with total lengths
 - **Pinned Labels**: Click measurements to keep their labels visible permanently
 - **Inline Tag Editing**: Click measurement values in pinned labels to change tags quickly
+- **Quick Deletion**: Delete measurements directly from pinned labels with the trash icon
 
 ## Technical Implementation
 

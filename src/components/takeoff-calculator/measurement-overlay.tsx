@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Pin, PinOff, Tag } from "lucide-react";
+import { Pin, PinOff, Tag, Trash2 } from "lucide-react";
 
 export interface Point {
   x: number;
@@ -38,6 +38,7 @@ interface MeasurementOverlayProps {
   setHoveredId: (id: number | null) => void;
   onTogglePin: (id: number) => void;
   onTagChange?: (measurementId: number, tag: Tag | null) => void;
+  onDeleteMeasurement?: (measurementId: number) => void;
   tags: Tag[];
   pdfWidth: number;
 }
@@ -56,6 +57,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
   setHoveredId,
   onTogglePin,
   onTagChange,
+  onDeleteMeasurement,
   tags,
   pdfWidth,
 }) => {
@@ -217,6 +219,18 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                   <Pin className="w-3 h-3" />
                 )}
               </button>
+              {isPinned && onDeleteMeasurement && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMeasurement(m.id);
+                  }}
+                  className="hover:bg-red-500/20 rounded p-0.5 transition-colors"
+                  title="Delete measurement"
+                >
+                  <Trash2 className="w-3 h-3 text-red-300 hover:text-red-100" />
+                </button>
+              )}
             </div>
 
             {/* Tag selector dropdown */}

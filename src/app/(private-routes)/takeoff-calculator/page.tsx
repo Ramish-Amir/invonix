@@ -222,6 +222,22 @@ export default function PDFViewer() {
     });
   };
 
+  const handleDeleteMeasurement = (measurementId: number) => {
+    // Remove from pinned measurements
+    setPinnedIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(measurementId);
+      return newSet;
+    });
+
+    // Remove from measurements
+    setMeasurements((prev) => prev.filter((m) => m.id !== measurementId));
+
+    // Update history for undo/redo
+    setHistory((prev) => [...prev, measurements]);
+    setRedoStack([]);
+  };
+
   return (
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
@@ -328,6 +344,7 @@ export default function PDFViewer() {
                     setHoveredId={setHoveredId}
                     onTogglePin={handleTogglePin}
                     onTagChange={handleMeasurementTagChange}
+                    onDeleteMeasurement={handleDeleteMeasurement}
                     tags={tags}
                     pdfWidth={pdfWidth}
                   />

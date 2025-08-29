@@ -66,7 +66,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-1">
         <Tag className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Size Tags:</span>
+        <span className="text-sm text-muted-foreground">Size (ø) Tags:</span>
       </div>
 
       {/* Existing tags */}
