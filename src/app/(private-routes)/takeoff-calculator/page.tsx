@@ -77,11 +77,9 @@ export default function PDFViewer() {
 
   // Tag state
   const [tags, setTags] = useState<Tag[]>([
-    { id: "1", name: "10mm", color: "#ef4444" },
-    { id: "2", name: "20mm", color: "#3b82f6" },
-    { id: "3", name: "30mm", color: "#22c55e" },
+    { id: "1", name: "65", color: "#ef4444" },
   ]);
-  const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
+  const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
