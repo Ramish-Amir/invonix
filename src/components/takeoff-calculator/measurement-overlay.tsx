@@ -132,9 +132,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                 markerEnd={`url(#arrow-${m.id})`}
                 stroke={m.tag?.color || "red"}
                 // Update the stroke width based on a multiple of scale
-                strokeWidth={
-                  isPinned ? Math.min(4, scale * 1.5) : Math.min(3, scale * 1.2)
-                }
+                strokeWidth={Math.min(3, scale * 1.2)}
                 opacity={isPinned ? 1 : 0.8}
                 onMouseEnter={() => setHoveredId(m.id)}
                 onMouseLeave={() => setHoveredId(null)}
@@ -239,8 +237,8 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                 ref={tagSelectorRef}
                 className="bg-white border border-gray-200 rounded-md shadow-lg p-2 min-w-[120px]"
               >
-                <div className="text-xs text-gray-600 mb-2 font-medium">
-                  Select Tag:
+                <div className="flex items-center gap-1 text-xs text-gray-600 mb-2 font-medium">
+                  <Tag className="w-3 h-3" /> Select Tag:
                 </div>
                 <div className="space-y-1">
                   {tags.map((tag) => (
