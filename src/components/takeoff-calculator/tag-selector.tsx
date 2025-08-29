@@ -74,7 +74,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
         <Badge
           key={tag.id}
           variant={selectedTag?.id === tag.id ? "default" : "secondary"}
-          className="cursor-pointer hover:opacity-80 transition-opacity"
+          className="cursor-pointer hover:opacity-80 transition-opacity pr-1"
           style={{
             backgroundColor: selectedTag?.id === tag.id ? tag.color : undefined,
             borderColor: tag.color,

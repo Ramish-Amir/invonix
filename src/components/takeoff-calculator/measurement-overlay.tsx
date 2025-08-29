@@ -259,7 +259,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                       <span>{tag.name}</span>
                     </button>
                   ))}
-                  <button
+                  {/* <button
                     onClick={() => {
                       onTagChange(m.id, null);
                       setTagSelectorForId(null);
@@ -268,7 +268,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                   >
                     <Tag className="w-3 h-3" />
                     <span>Remove tag</span>
-                  </button>
+                  </button> */}
                 </div>
               </div>
             )}
