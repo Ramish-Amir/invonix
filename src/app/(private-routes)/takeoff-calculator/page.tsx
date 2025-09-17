@@ -51,9 +51,7 @@ const maxWidth = 800;
 export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [file, setFile] = useState<PDFFile>(
-    "/Level1 Floor Plan - Hydronic.pdf"
-  );
+  const [file, setFile] = useState<PDFFile>("/sample.pdf");
   const [numPages, setNumPages] = useState<number>();
   const [scale, setScale] = useState(1.25); // This the zoom level, 1.25 is 125%
   const [containerWidth, setContainerWidth] = useState<number>();
