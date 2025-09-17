@@ -1,15 +1,21 @@
 import React from "react";
 import { Measurement } from "./measurement-overlay";
-import { Ruler } from "lucide-react";
+import { Ruler, Tag } from "lucide-react";
+import { Badge } from "../ui/badge";
+import { Tag as TagType } from "./tag-selector";
 
 interface MeasurementListProps {
   measurements: Measurement[];
   scaleFactor: number | null;
+  tags: TagType[];
+  onMeasurementTagChange?: (measurementId: number, tag: TagType | null) => void;
 }
 
 export const MeasurementList: React.FC<MeasurementListProps> = ({
   measurements,
   scaleFactor,
+  tags,
+  onMeasurementTagChange,
 }) => {
   if (!scaleFactor || measurements.length === 0) return null;
 
@@ -26,8 +32,43 @@ export const MeasurementList: React.FC<MeasurementListProps> = ({
             key={m.id}
             className="bg-primary/5 border border-primary/20 rounded-md px-4 py-3 shadow-sm"
           >
-            <div className="text-sm text-muted-foreground mb-1">
-              Measurement #{idx + 1}
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm text-muted-foreground">
+                Measurement #{idx + 1}
+              </div>
+              {m.tag && (
+                <Badge
+                  variant="secondary"
+                  className="text-xs cursor-pointer hover:opacity-80"
+                  style={{
+                    backgroundColor: m.tag.color,
+                    color: "white",
+                    borderColor: m.tag.color,
+                  }}
+                  onClick={() => onMeasurementTagChange?.(m.id, null)}
+                  title="Click to remove tag"
+                >
+                  <Tag className="w-3 h-3 mr-1" />
+                  {m.tag.name}
+                </Badge>
+              )}
+              {!m.tag && onMeasurementTagChange && (
+                <div className="flex gap-1">
+                  {tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="text-xs cursor-pointer hover:opacity-80"
+                      style={{ borderColor: tag.color }}
+                      onClick={() => onMeasurementTagChange(m.id, tag)}
+                      title={`Click to assign ${tag.name} tag`}
+                    >
+                      <Tag className="w-3 h-3 mr-1" />
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="text-xl font-semibold text-primary">
               {(m.pixelDistance * scaleFactor).toFixed(2)} m

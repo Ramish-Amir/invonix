@@ -9,6 +9,12 @@ import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu
 import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callibration-scale";
 import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
 import { MeasurementList } from "@/components/takeoff-calculator/measurement-list";
+import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
+import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
+import {
+  DEFAULT_CALLIBRATION_VALUE,
+  DrawingCalibrations,
+} from "@/lib/drawingCallibrations";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -20,14 +26,6 @@ const options = {
   standardFontDataUrl: "/standard_fonts/",
   wasmUrl: "/wasm/",
 };
-
-const drawingCalibrations: Record<string, number> = {
-  "125": 0.1661, // 1:125 scale => 1 px = 0.1661 m
-  "100": 0.125, // 1:100 scale => 1 px = 0.125 m
-  "75": 0.0933, // 1:75 scale => 1 px = 0.0933 m
-};
-
-const defaultCalibrationValue = "125";
 
 type PDFFile = string | File | null;
 
@@ -41,6 +39,11 @@ interface Measurement {
   id: number;
   points: [Point, Point];
   pixelDistance: number;
+  tag?: {
+    id: string;
+    name: string;
+    color: string;
+  };
 }
 
 const maxWidth = 800;
@@ -48,21 +51,33 @@ const maxWidth = 800;
 export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [file, setFile] = useState<PDFFile>(
-    "/Level1 Floor Plan - Hydronic.pdf"
-  );
+  const [file, setFile] = useState<PDFFile>("/sample.pdf");
   const [numPages, setNumPages] = useState<number>();
   const [scale, setScale] = useState(1.25); // This the zoom level, 1.25 is 125%
   const [containerWidth, setContainerWidth] = useState<number>();
   const [pdfWidth, setPdfWidth] = useState<number>(0);
   const [scaleFactor, setScaleFactor] = useState<number | null>(
-    drawingCalibrations[defaultCalibrationValue]
+    DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
   ); // Scale factor for converting pixels to meters
+  const [viewportDimensions, setViewportDimensions] = useState<{
+    width: number;
+    height: number;
+  }>({
+    width: 0,
+    height: 0,
+  });
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
 
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
+
+  // Tag state
+  const [tags, setTags] = useState<Tag[]>([
+    { id: "1", name: "65", color: "#ef4444" },
+  ]);
+  const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -91,6 +106,7 @@ export default function PDFViewer() {
     setScaleFactor(null);
     setHistory([]);
     setRedoStack([]);
+    setPinnedIds(new Set());
   }
 
   function onDocumentLoadSuccess({ numPages: nextNumPages }: any) {
@@ -136,6 +152,7 @@ export default function PDFViewer() {
       id: Date.now(),
       points: [p1, p2],
       pixelDistance,
+      tag: selectedTag || undefined,
     };
 
     const updatedMeasurements = [...measurements, newMeasurement];
@@ -148,92 +165,6 @@ export default function PDFViewer() {
     setDragEnd(null);
     setDragPage(null);
     setIsDragging(false);
-  };
-
-  const renderOverlay = (pageNumber: number) => {
-    const pageMeasurements = measurements.filter(
-      (m) => m.points[0].page === pageNumber && m.points[1].page === pageNumber
-    );
-
-    return (
-      <svg
-        className="absolute top-0 left-0 pointer-events-auto"
-        width={pdfWidth}
-        height="100%"
-      >
-        {pageMeasurements.map((m) => {
-          const x1 = m.points[0].x * scale;
-          const y1 = m.points[0].y * scale;
-          const x2 = m.points[1].x * scale;
-          const y2 = m.points[1].y * scale;
-          const midX = (x1 + x2) / 2;
-          const midY = (y1 + y2) / 2;
-          const label = `${(m.pixelDistance * (scaleFactor || 1)).toFixed(
-            2
-          )} m`;
-
-          return (
-            <g key={m.id}>
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke="red"
-                strokeWidth={4}
-                strokeLinecap="round"
-                opacity={0.5}
-                onMouseEnter={() => setHoveredId(m.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
-              />
-              {hoveredId === m.id && (
-                <>
-                  <rect
-                    x={midX - 40}
-                    y={midY - 24}
-                    // Radius for rounded corners
-                    rx={4}
-                    ry={4}
-                    width={80}
-                    height={20}
-                    fill="rgb(47, 130, 172)"
-                    stroke="rgb(47, 130, 172)"
-                    strokeWidth={0.5}
-                    opacity={0.8}
-                  />
-                  <text
-                    x={midX}
-                    y={midY - 10}
-                    fill="white"
-                    fontSize={12}
-                    textAnchor="middle"
-                    fontFamily="sans-serif"
-                    pointerEvents="none"
-                  >
-                    {label}
-                  </text>
-                </>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Preview line during drag */}
-        {isDragging && dragStart && dragEnd && dragPage === pageNumber && (
-          <line
-            x1={dragStart.x * scale}
-            y1={dragStart.y * scale}
-            x2={dragEnd.x * scale}
-            y2={dragEnd.y * scale}
-            stroke="blue"
-            strokeWidth={2}
-            strokeDasharray="5,5"
-            opacity={0.7}
-          />
-        )}
-      </svg>
-    );
   };
 
   const handleUndo = () => {
@@ -250,6 +181,57 @@ export default function PDFViewer() {
     setMeasurements(next);
     setHistory((h) => [...h, measurements]);
     setRedoStack((r) => r.slice(1));
+  };
+
+  const handleTagCreate = (newTag: Tag) => {
+    setTags((prev) => [...prev, newTag]);
+    setSelectedTag(newTag);
+  };
+
+  const handleTagDelete = (tagId: string) => {
+    setTags((prev) => prev.filter((tag) => tag.id !== tagId));
+    if (selectedTag?.id === tagId) {
+      setSelectedTag(null);
+    }
+  };
+
+  const handleMeasurementTagChange = (
+    measurementId: number,
+    tag: Tag | null
+  ) => {
+    setMeasurements((prev) =>
+      prev.map((m) =>
+        m.id === measurementId ? { ...m, tag: tag || undefined } : m
+      )
+    );
+  };
+
+  const handleTogglePin = (measurementId: number) => {
+    setPinnedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(measurementId)) {
+        newSet.delete(measurementId);
+      } else {
+        newSet.add(measurementId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDeleteMeasurement = (measurementId: number) => {
+    // Remove from pinned measurements
+    setPinnedIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(measurementId);
+      return newSet;
+    });
+
+    // Remove from measurements
+    setMeasurements((prev) => prev.filter((m) => m.id !== measurementId));
+
+    // Update history for undo/redo
+    setHistory((prev) => [...prev, measurements]);
+    setRedoStack([]);
   };
 
   return (
@@ -283,6 +265,17 @@ export default function PDFViewer() {
         </div>
       </div>
 
+      {/* Tag Selector */}
+      <div className="mb-4">
+        <TagSelector
+          tags={tags}
+          selectedTag={selectedTag}
+          onTagSelect={setSelectedTag}
+          onTagCreate={handleTagCreate}
+          onTagDelete={handleTagDelete}
+        />
+      </div>
+
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
           <TakeoffControlMenu
@@ -290,8 +283,12 @@ export default function PDFViewer() {
             setScale={setScale}
             handleRedo={handleRedo}
             handleUndo={handleUndo}
+            pinnedCount={pinnedIds.size}
+            onClearAllPins={() => setPinnedIds(new Set())}
           />
-
+          <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
+            <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
+          </div>
           <div
             className="max-w-[100%] max-h-[100vh] overflow-auto"
             ref={containerRef}
@@ -321,6 +318,11 @@ export default function PDFViewer() {
                     renderTextLayer={false}
                     onRenderSuccess={(page) => {
                       setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
+                      const viewport = page.getViewport({ scale: 1 });
+                      setViewportDimensions({
+                        width: Number((viewport.width / 72).toFixed(0)),
+                        height: Number((viewport.height / 72).toFixed(0)),
+                      });
                     }}
                   />
 
@@ -330,11 +332,16 @@ export default function PDFViewer() {
                     scale={scale}
                     scaleFactor={scaleFactor}
                     hoveredId={hoveredId}
+                    pinnedIds={pinnedIds}
                     isDragging={isDragging}
                     dragStart={dragStart}
                     dragEnd={dragEnd}
                     dragPage={dragPage}
                     setHoveredId={setHoveredId}
+                    onTogglePin={handleTogglePin}
+                    onTagChange={handleMeasurementTagChange}
+                    onDeleteMeasurement={handleDeleteMeasurement}
+                    tags={tags}
                     pdfWidth={pdfWidth}
                   />
                 </div>
@@ -346,10 +353,19 @@ export default function PDFViewer() {
 
       <div className="mt-6">
         {measurements.length > 0 && (
-          <MeasurementList
-            measurements={measurements}
-            scaleFactor={scaleFactor}
-          />
+          <>
+            <MeasurementList
+              measurements={measurements}
+              scaleFactor={scaleFactor}
+              tags={tags}
+              onMeasurementTagChange={handleMeasurementTagChange}
+            />
+            <MeasurementSummary
+              measurements={measurements}
+              scaleFactor={scaleFactor}
+              tags={tags}
+            />
+          </>
         )}
       </div>
     </div>
