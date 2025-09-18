@@ -87,21 +87,21 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/invoices",
           label: "All Invoices",
-          active: pathname === "/invoices",
+          active: pathname === "/invoices/",
           icon: FileText,
           submenus: [],
         },
         {
           href: "/create-invoice",
           label: "New Invoice",
-          active: pathname === "/create-invoice",
+          active: pathname === "/create-invoice/",
           icon: SquarePen,
           submenus: [],
         },
         {
           href: "/invoice-settings",
           label: "Invoice Settings",
-          active: pathname === "/invoice-settings",
+          active: pathname === "/invoice-settings/",
           icon: FileCog,
           submenus: [],
         },
@@ -113,7 +113,7 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/takeoff-calculator",
           label: "Take-off Calculator",
-          active: pathname === "/takeoff-calculator",
+          active: pathname === "/takeoff-calculator/",
           icon: FileText,
           submenus: [],
         },
