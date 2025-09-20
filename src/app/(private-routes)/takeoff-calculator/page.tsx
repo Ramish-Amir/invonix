@@ -85,6 +85,8 @@ export default function PDFViewer() {
   const [dragEnd, setDragEnd] = useState<Point | null>(null);
   const [dragPage, setDragPage] = useState<number | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   const onResize = useCallback<ResizeObserverCallback>((entries) => {
     const [entry] = entries;
     if (entry) setContainerWidth(entry.contentRect.width);
@@ -166,6 +168,40 @@ export default function PDFViewer() {
     setDragPage(null);
     setIsDragging(false);
   };
+
+  // Track current page as user scrolls
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scrollTop = containerRef.current.scrollTop;
+    const containerHeight = containerRef.current.clientHeight;
+    const children =
+      containerRef.current.querySelectorAll("[data-page-number]");
+
+    let pageInView = currentPage;
+
+    children.forEach((child) => {
+      const rect = (child as HTMLElement).getBoundingClientRect();
+      if (rect.top >= 0 && rect.bottom <= containerHeight + 100) {
+        const pageNum = parseInt(
+          (child as HTMLElement).getAttribute("data-page-number") || "1",
+          10
+        );
+        pageInView = pageNum;
+      }
+    });
+
+    if (pageInView !== currentPage) {
+      setCurrentPage(pageInView);
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -298,54 +334,63 @@ export default function PDFViewer() {
               onLoadSuccess={onDocumentLoadSuccess}
               options={options}
             >
-              {Array.from(new Array(numPages), (_, index) => (
-                <div
-                  key={`pdf_page_${index + 1}`}
-                  className="relative mb-6 border"
-                  onMouseDown={(e) => handleMouseDown(e, index + 1)}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                >
-                  <Page
-                    pageNumber={index + 1}
-                    scale={scale}
-                    width={
-                      containerWidth
-                        ? Math.min(containerWidth, maxWidth)
-                        : maxWidth
-                    }
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
-                    onRenderSuccess={(page) => {
-                      setPdfWidth(page.height); // By debugging, we can see the height of the PDF page is the correct measurement for canvas width
-                      const viewport = page.getViewport({ scale: 1 });
-                      setViewportDimensions({
-                        width: Number((viewport.width / 72).toFixed(0)),
-                        height: Number((viewport.height / 72).toFixed(0)),
-                      });
-                    }}
-                  />
+              {Array.from(new Array(numPages), (_, index) => {
+                const pageNumber = index + 1;
+                const isVisible = Math.abs(pageNumber - currentPage) <= 1; // only current page + neighbors
 
-                  <MeasurementOverlay
-                    pageNumber={index + 1}
-                    measurements={measurements}
-                    scale={scale}
-                    scaleFactor={scaleFactor}
-                    hoveredId={hoveredId}
-                    pinnedIds={pinnedIds}
-                    isDragging={isDragging}
-                    dragStart={dragStart}
-                    dragEnd={dragEnd}
-                    dragPage={dragPage}
-                    setHoveredId={setHoveredId}
-                    onTogglePin={handleTogglePin}
-                    onTagChange={handleMeasurementTagChange}
-                    onDeleteMeasurement={handleDeleteMeasurement}
-                    tags={tags}
-                    pdfWidth={pdfWidth}
-                  />
-                </div>
-              ))}
+                return (
+                  <div
+                    key={`pdf_page_${pageNumber}`}
+                    className="relative mb-6 border"
+                    data-page-number={pageNumber}
+                    onMouseDown={(e) => handleMouseDown(e, pageNumber)}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                  >
+                    {isVisible && (
+                      <>
+                        <Page
+                          pageNumber={pageNumber}
+                          scale={scale}
+                          width={
+                            containerWidth
+                              ? Math.min(containerWidth, maxWidth)
+                              : maxWidth
+                          }
+                          renderAnnotationLayer={false}
+                          renderTextLayer={false}
+                          onRenderSuccess={(page) => {
+                            setPdfWidth(page.height);
+                            const viewport = page.getViewport({ scale: 1 });
+                            setViewportDimensions({
+                              width: Number((viewport.width / 72).toFixed(0)),
+                              height: Number((viewport.height / 72).toFixed(0)),
+                            });
+                          }}
+                        />
+                        <MeasurementOverlay
+                          pageNumber={pageNumber}
+                          measurements={measurements}
+                          scale={scale}
+                          scaleFactor={scaleFactor}
+                          hoveredId={hoveredId}
+                          pinnedIds={pinnedIds}
+                          isDragging={isDragging}
+                          dragStart={dragStart}
+                          dragEnd={dragEnd}
+                          dragPage={dragPage}
+                          setHoveredId={setHoveredId}
+                          onTogglePin={handleTogglePin}
+                          onTagChange={handleMeasurementTagChange}
+                          onDeleteMeasurement={handleDeleteMeasurement}
+                          tags={tags}
+                          pdfWidth={pdfWidth}
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </Document>
           </div>
         </div>
