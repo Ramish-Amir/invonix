@@ -8,6 +8,8 @@ type TakeoffControlMenuProps = {
   handleRedo: () => void;
   pinnedCount: number;
   onClearAllPins: () => void;
+  currentPage: number;
+  totalPages: number;
 };
 
 export const TakeoffControlMenu = ({
@@ -17,9 +19,14 @@ export const TakeoffControlMenu = ({
   handleUndo,
   pinnedCount,
   onClearAllPins,
+  currentPage,
+  totalPages,
 }: TakeoffControlMenuProps) => {
   return (
     <div className="absolute top-6 right-6 z-[1] flex gap-2 items-center">
+      <div className="flex h-[46px] text-primary p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
+        {currentPage}/{totalPages}
+      </div>
       <div
         onClick={handleUndo}
         className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"

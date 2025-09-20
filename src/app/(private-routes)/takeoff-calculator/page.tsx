@@ -321,6 +321,8 @@ export default function PDFViewer() {
             handleUndo={handleUndo}
             pinnedCount={pinnedIds.size}
             onClearAllPins={() => setPinnedIds(new Set())}
+            currentPage={currentPage}
+            totalPages={numPages || 0}
           />
           <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
             <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
