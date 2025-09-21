@@ -172,27 +172,29 @@ export default function PDFViewer() {
   // Track current page as user scrolls
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
-
-    const scrollTop = containerRef.current.scrollTop;
-    const containerHeight = containerRef.current.clientHeight;
-    const children =
-      containerRef.current.querySelectorAll("[data-page-number]");
-
-    let pageInView = currentPage;
+    const container = containerRef.current;
+    const children = container.querySelectorAll("[data-page-number]");
+    let closestPage = currentPage;
+    let minDistance = Infinity;
 
     children.forEach((child) => {
       const rect = (child as HTMLElement).getBoundingClientRect();
-      if (rect.top >= 0 && rect.bottom <= containerHeight + 100) {
+      // Distance from top of container
+      const distance = Math.abs(
+        rect.top - container.getBoundingClientRect().top
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
         const pageNum = parseInt(
           (child as HTMLElement).getAttribute("data-page-number") || "1",
           10
         );
-        pageInView = pageNum;
+        closestPage = pageNum;
       }
     });
 
-    if (pageInView !== currentPage) {
-      setCurrentPage(pageInView);
+    if (closestPage !== currentPage) {
+      setCurrentPage(closestPage);
     }
   }, [currentPage]);
 
@@ -362,6 +364,7 @@ export default function PDFViewer() {
                           renderAnnotationLayer={false}
                           renderTextLayer={false}
                           onRenderSuccess={(page) => {
+                            page.cleanup();
                             setPdfWidth(page.height);
                             const viewport = page.getViewport({ scale: 1 });
                             setViewportDimensions({
