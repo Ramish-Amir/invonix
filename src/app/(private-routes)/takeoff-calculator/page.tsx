@@ -452,6 +452,14 @@ export default function PDFViewer() {
       <div className="mt-6">
         {measurements.length > 0 && (
           <>
+            <MeasurementSummary
+              measurements={measurements}
+              scaleFactorGetter={(measurement) =>
+                pageScaleFactors[measurement.points[0].page] ??
+                DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
+              }
+              tags={tags}
+            />
             <MeasurementList
               measurements={measurements}
               // Pass per-measurement scaleFactor based on page
@@ -461,14 +469,6 @@ export default function PDFViewer() {
               }
               tags={tags}
               onMeasurementTagChange={handleMeasurementTagChange}
-            />
-            <MeasurementSummary
-              measurements={measurements}
-              scaleFactorGetter={(measurement) =>
-                pageScaleFactors[measurement.points[0].page] ??
-                DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
-              }
-              tags={tags}
             />
           </>
         )}
