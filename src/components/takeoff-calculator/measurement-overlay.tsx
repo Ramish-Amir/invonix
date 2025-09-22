@@ -106,38 +106,39 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
 
           return (
             <g key={m.id}>
-              <defs>
-                <marker
-                  id={`arrow-${m.id}`}
-                  viewBox="0 0 10 10"
-                  refX="8"
-                  refY="5"
-                  markerWidth="4"
-                  markerHeight="4"
-                  orient="auto-start-reverse"
-                  markerUnits="strokeWidth"
-                >
-                  <path
-                    d="M 0 0 L 10 5 L 0 10 z"
-                    fill={m.tag?.color || "red"}
-                  />
-                </marker>
-              </defs>
               <line
                 x1={x1}
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                markerStart={`url(#arrow-${m.id})`}
-                markerEnd={`url(#arrow-${m.id})`}
                 stroke={m.tag?.color || "red"}
                 // Update the stroke width based on a multiple of scale
-                strokeWidth={Math.min(3, scale * 1.2)}
-                opacity={isPinned ? 1 : 0.8}
+                // strokeWidth={Math.min(3, scale * 1.2)}
+                strokeWidth={2}
+                strokeLinejoin={"bevel"}
+                opacity={isPinned ? 1 : 0.9}
                 onMouseEnter={() => setHoveredId(m.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={() => onTogglePin(m.id)}
                 style={{ cursor: "pointer", pointerEvents: "visiblePainted" }}
+              />
+              {/* Start and end dot */}
+              <circle
+                cx={x1}
+                cy={y1}
+                r={1}
+                fill="white"
+                stroke={m.tag?.color || "red"}
+                strokeWidth={1}
+              />
+
+              <circle
+                cx={x2}
+                cy={y2}
+                r={1}
+                fill="white"
+                stroke={m.tag?.color || "red"}
+                strokeWidth={1}
               />
             </g>
           );
@@ -145,16 +146,46 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
 
         {/* Drag preview line */}
         {isDragging && dragStart && dragEnd && dragPage === pageNumber && (
-          <line
-            x1={dragStart.x * scale}
-            y1={dragStart.y * scale}
-            x2={dragEnd.x * scale}
-            y2={dragEnd.y * scale}
-            stroke="blue"
-            strokeWidth={2}
-            strokeDasharray="5,5"
-            opacity={0.7}
-          />
+          // <line
+          //   x1={dragStart.x * scale}
+          //   y1={dragStart.y * scale}
+          //   x2={dragEnd.x * scale}
+          //   y2={dragEnd.y * scale}
+          //   stroke="blue"
+          //   strokeWidth={2}
+          //   // strokeDasharray="5,5"
+          //   opacity={0.7}
+          // />
+          <g>
+            <line
+              x1={dragStart.x * scale}
+              y1={dragStart.y * scale}
+              x2={dragEnd.x * scale}
+              y2={dragEnd.y * scale}
+              stroke="blue"
+              strokeWidth={2}
+              // strokeDasharray="5,5"
+              opacity={0.7}
+            />
+            {/* Start and end dot */}
+            <circle
+              cx={dragStart.x * scale}
+              cy={dragStart.y * scale}
+              r={1}
+              fill="white"
+              stroke={"blue"}
+              strokeWidth={1}
+            />
+
+            <circle
+              cx={dragEnd.x * scale}
+              cy={dragEnd.y * scale}
+              r={1}
+              fill="white"
+              stroke={"blue"}
+              strokeWidth={1}
+            />
+          </g>
         )}
       </svg>
 
