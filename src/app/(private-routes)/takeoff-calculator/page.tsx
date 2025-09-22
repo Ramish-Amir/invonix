@@ -354,9 +354,8 @@ export default function PDFViewer() {
                 return (
                   <div
                     key={`page_container_${pageNumber}`}
-                    className="relative"
+                    className="relative overflow-x-auto mb-6"
                   >
-                    {/* <div className="relative"> */}
                     <div className="flex items-center sticky top-0 left-0 right-0 z-[1] justify-between px-4 py-2 border bg-gray-50 rounded-t-lg">
                       <span className="text-xs text-gray-500">
                         Page {pageNumber}
@@ -388,11 +387,10 @@ export default function PDFViewer() {
                           aria-label={`Zoom for page ${pageNumber}`}
                         />
                       </div>
-                      {/* </div> */}
                     </div>
                     <div
                       key={`pdf_page_${pageNumber}`}
-                      className="relative mb-6 border border-t-0 shadow-sm bg-white"
+                      className="relative border border-t-0 shadow-sm"
                       data-page-number={pageNumber}
                       onMouseDown={(e) => handleMouseDown(e, pageNumber)}
                       onMouseMove={handleMouseMove}
