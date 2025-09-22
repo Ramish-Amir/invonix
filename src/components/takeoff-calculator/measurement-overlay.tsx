@@ -40,7 +40,7 @@ interface MeasurementOverlayProps {
   onTagChange?: (measurementId: number, tag: Tag | null) => void;
   onDeleteMeasurement?: (measurementId: number) => void;
   tags: Tag[];
-  pdfWidth: number;
+  pageWidth: number;
 }
 
 export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
@@ -59,7 +59,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
   onTagChange,
   onDeleteMeasurement,
   tags,
-  pdfWidth,
+  pageWidth,
 }) => {
   const [tagSelectorForId, setTagSelectorForId] = useState<number | null>(null);
   const tagSelectorRef = useRef<HTMLDivElement>(null);
@@ -92,7 +92,7 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
     <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
       <svg
         className="absolute top-0 left-0 pointer-events-auto"
-        width={pdfWidth}
+        width={pageWidth}
         height="100%"
         cursor={"crosshair"}
       >
@@ -115,7 +115,6 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({
                 // Update the stroke width based on a multiple of scale
                 // strokeWidth={Math.min(3, scale * 1.2)}
                 strokeWidth={2}
-                strokeLinejoin={"bevel"}
                 opacity={isPinned ? 1 : 0.9}
                 onMouseEnter={() => setHoveredId(m.id)}
                 onMouseLeave={() => setHoveredId(null)}

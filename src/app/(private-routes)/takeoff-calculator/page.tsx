@@ -56,7 +56,7 @@ export default function PDFViewer() {
   // Per-page scale (zoom) and calibration factor
   const [pageScales, setPageScales] = useState<{ [page: number]: number }>({});
   const [containerWidth, setContainerWidth] = useState<number>();
-  const [pdfWidth, setPdfWidth] = useState<number>(0);
+  const [pagesWidth, setPagesWidth] = useState<{ [page: number]: number }>({}); // New state to track individual page widths
   const [pageScaleFactors, setPageScaleFactors] = useState<{
     [page: number]: number;
   }>({});
@@ -410,7 +410,10 @@ export default function PDFViewer() {
                             renderTextLayer={false}
                             onRenderSuccess={(page) => {
                               page.cleanup();
-                              setPdfWidth(page.height);
+                              setPagesWidth((prev) => ({
+                                ...prev,
+                                [pageNumber]: Math.max(page.width, page.height),
+                              }));
                               const viewport = page.getViewport({ scale: 1 });
                               setViewportDimensions({
                                 width: Number((viewport.width / 72).toFixed(0)),
@@ -436,7 +439,7 @@ export default function PDFViewer() {
                             onTagChange={handleMeasurementTagChange}
                             onDeleteMeasurement={handleDeleteMeasurement}
                             tags={tags}
-                            pdfWidth={pdfWidth}
+                            pageWidth={pagesWidth[pageNumber] || 0} // Changes for each page after every zoom-level update
                           />
                         </>
                       )}
