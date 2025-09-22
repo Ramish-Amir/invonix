@@ -152,9 +152,6 @@ export default function PDFViewer() {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
     const pixelDistance = Math.sqrt(dx ** 2 + dy ** 2);
-    const scaleFactor =
-      pageScaleFactors[pageNum] ??
-      DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
 
     const newMeasurement: Measurement = {
       id: Date.now(),
@@ -363,12 +360,13 @@ export default function PDFViewer() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500">Scale:</span>
                         <DrawingCallibrationScale
-                          setScaleFactor={(factor: number) =>
-                            setPageScaleFactors((prev) => ({
+                          setScaleFactor={(factor: number) => {
+                            return setPageScaleFactors((prev) => ({
                               ...prev,
                               [pageNumber]: factor,
-                            }))
-                          }
+                            }));
+                          }}
+                          viewportDimensions={viewportDimensions}
                         />
                         <span className="text-xs text-gray-500">Zoom:</span>
                         <input
