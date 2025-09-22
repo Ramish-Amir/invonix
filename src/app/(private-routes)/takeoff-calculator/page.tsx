@@ -53,12 +53,13 @@ export default function PDFViewer() {
 
   const [file, setFile] = useState<PDFFile>("/sample.pdf");
   const [numPages, setNumPages] = useState<number>();
-  const [scale, setScale] = useState(1.25); // This the zoom level, 1.25 is 125%
+  // Per-page scale (zoom) and calibration factor
+  const [pageScales, setPageScales] = useState<{ [page: number]: number }>({});
   const [containerWidth, setContainerWidth] = useState<number>();
   const [pdfWidth, setPdfWidth] = useState<number>(0);
-  const [scaleFactor, setScaleFactor] = useState<number | null>(
-    DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
-  ); // Scale factor for converting pixels to meters
+  const [pageScaleFactors, setPageScaleFactors] = useState<{
+    [page: number]: number;
+  }>({});
   const [viewportDimensions, setViewportDimensions] = useState<{
     width: number;
     height: number;
@@ -105,7 +106,8 @@ export default function PDFViewer() {
     setFile(nextFile);
     setNumPages(undefined);
     setMeasurements([]);
-    setScaleFactor(null);
+    setPageScales({});
+    setPageScaleFactors({});
     setHistory([]);
     setRedoStack([]);
     setPinnedIds(new Set());
@@ -119,6 +121,7 @@ export default function PDFViewer() {
     e: React.MouseEvent<HTMLDivElement>,
     pageNumber: number
   ) => {
+    const scale = pageScales[pageNumber] ?? 1.25;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / scale;
     const y = (e.clientY - rect.top) / scale;
@@ -130,7 +133,7 @@ export default function PDFViewer() {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging || !dragStart || dragPage === null) return;
-
+    const scale = pageScales[dragPage] ?? 1.25;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = (e.clientX - rect.left) / scale;
     const y = (e.clientY - rect.top) / scale;
@@ -145,10 +148,13 @@ export default function PDFViewer() {
 
     const p1 = dragStart;
     const p2 = dragEnd;
-
+    const pageNum = dragPage ?? 1;
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
     const pixelDistance = Math.sqrt(dx ** 2 + dy ** 2);
+    const scaleFactor =
+      pageScaleFactors[pageNum] ??
+      DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
 
     const newMeasurement: Measurement = {
       id: Date.now(),
@@ -285,9 +291,8 @@ export default function PDFViewer() {
             : file?.name ?? "No file selected"}
         </div>
 
-        {/* Right: Upload + Scale Selector */}
+        {/* Right: Upload */}
         <div className="flex items-center gap-2">
-          {/* Upload Button */}
           <label className="flex h-9 items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
             <Upload className="w-4 h-4 mr-2" />
             Upload PDF
@@ -298,8 +303,6 @@ export default function PDFViewer() {
               className="hidden"
             />
           </label>
-
-          <DrawingCallibrationScale setScaleFactor={setScaleFactor} />
         </div>
       </div>
 
@@ -317,8 +320,10 @@ export default function PDFViewer() {
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
           <TakeoffControlMenu
-            scale={scale}
-            setScale={setScale}
+            scale={pageScales[currentPage] ?? 1.25}
+            setScale={(newScale: number) =>
+              setPageScales((prev) => ({ ...prev, [currentPage]: newScale }))
+            }
             handleRedo={handleRedo}
             handleUndo={handleUndo}
             pinnedCount={pinnedIds.size}
@@ -340,59 +345,104 @@ export default function PDFViewer() {
             >
               {Array.from(new Array(numPages), (_, index) => {
                 const pageNumber = index + 1;
-                const isVisible = Math.abs(pageNumber - currentPage) <= 1; // only current page + neighbors
+                const isVisible = Math.abs(pageNumber - currentPage) <= 1;
+                const scale = pageScales[pageNumber] ?? 1.25;
+                const scaleFactor =
+                  pageScaleFactors[pageNumber] ??
+                  DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
 
                 return (
                   <div
-                    key={`pdf_page_${pageNumber}`}
-                    className="relative mb-6 border"
-                    data-page-number={pageNumber}
-                    onMouseDown={(e) => handleMouseDown(e, pageNumber)}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
+                    key={`page_container_${pageNumber}`}
+                    className="relative"
                   >
-                    {isVisible && (
-                      <>
-                        <Page
-                          pageNumber={pageNumber}
-                          scale={scale}
-                          width={
-                            containerWidth
-                              ? Math.min(containerWidth, maxWidth)
-                              : maxWidth
+                    {/* <div className="relative"> */}
+                    <div className="flex items-center sticky top-0 left-0 right-0 z-[1] justify-between px-4 py-2 border bg-gray-50 rounded-t-lg">
+                      <span className="text-xs text-gray-500">
+                        Page {pageNumber}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Scale:</span>
+                        <DrawingCallibrationScale
+                          setScaleFactor={(factor: number) =>
+                            setPageScaleFactors((prev) => ({
+                              ...prev,
+                              [pageNumber]: factor,
+                            }))
                           }
-                          renderAnnotationLayer={false}
-                          renderTextLayer={false}
-                          onRenderSuccess={(page) => {
-                            page.cleanup();
-                            setPdfWidth(page.height);
-                            const viewport = page.getViewport({ scale: 1 });
-                            setViewportDimensions({
-                              width: Number((viewport.width / 72).toFixed(0)),
-                              height: Number((viewport.height / 72).toFixed(0)),
-                            });
-                          }}
                         />
-                        <MeasurementOverlay
-                          pageNumber={pageNumber}
-                          measurements={measurements}
-                          scale={scale}
-                          scaleFactor={scaleFactor}
-                          hoveredId={hoveredId}
-                          pinnedIds={pinnedIds}
-                          isDragging={isDragging}
-                          dragStart={dragStart}
-                          dragEnd={dragEnd}
-                          dragPage={dragPage}
-                          setHoveredId={setHoveredId}
-                          onTogglePin={handleTogglePin}
-                          onTagChange={handleMeasurementTagChange}
-                          onDeleteMeasurement={handleDeleteMeasurement}
-                          tags={tags}
-                          pdfWidth={pdfWidth}
+                        <span className="text-xs text-gray-500">Zoom:</span>
+                        <input
+                          type="number"
+                          min={0.5}
+                          max={3}
+                          step={0.05}
+                          value={scale}
+                          onChange={(e) =>
+                            setPageScales((prev) => ({
+                              ...prev,
+                              [pageNumber]: Number(e.target.value),
+                            }))
+                          }
+                          className="w-16 px-2 py-1 border rounded text-xs"
+                          aria-label={`Zoom for page ${pageNumber}`}
                         />
-                      </>
-                    )}
+                      </div>
+                      {/* </div> */}
+                    </div>
+                    <div
+                      key={`pdf_page_${pageNumber}`}
+                      className="relative mb-6 border border-t-0 shadow-sm bg-white"
+                      data-page-number={pageNumber}
+                      onMouseDown={(e) => handleMouseDown(e, pageNumber)}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                    >
+                      {isVisible && (
+                        <>
+                          <Page
+                            pageNumber={pageNumber}
+                            scale={scale}
+                            width={
+                              containerWidth
+                                ? Math.min(containerWidth, maxWidth)
+                                : maxWidth
+                            }
+                            renderAnnotationLayer={false}
+                            renderTextLayer={false}
+                            onRenderSuccess={(page) => {
+                              page.cleanup();
+                              setPdfWidth(page.height);
+                              const viewport = page.getViewport({ scale: 1 });
+                              setViewportDimensions({
+                                width: Number((viewport.width / 72).toFixed(0)),
+                                height: Number(
+                                  (viewport.height / 72).toFixed(0)
+                                ),
+                              });
+                            }}
+                          />
+                          <MeasurementOverlay
+                            pageNumber={pageNumber}
+                            measurements={measurements}
+                            scale={scale}
+                            scaleFactor={scaleFactor}
+                            hoveredId={hoveredId}
+                            pinnedIds={pinnedIds}
+                            isDragging={isDragging}
+                            dragStart={dragStart}
+                            dragEnd={dragEnd}
+                            dragPage={dragPage}
+                            setHoveredId={setHoveredId}
+                            onTogglePin={handleTogglePin}
+                            onTagChange={handleMeasurementTagChange}
+                            onDeleteMeasurement={handleDeleteMeasurement}
+                            tags={tags}
+                            pdfWidth={pdfWidth}
+                          />
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -406,13 +456,20 @@ export default function PDFViewer() {
           <>
             <MeasurementList
               measurements={measurements}
-              scaleFactor={scaleFactor}
+              // Pass per-measurement scaleFactor based on page
+              scaleFactorGetter={(measurement) =>
+                pageScaleFactors[measurement.points[0].page] ??
+                DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
+              }
               tags={tags}
               onMeasurementTagChange={handleMeasurementTagChange}
             />
             <MeasurementSummary
               measurements={measurements}
-              scaleFactor={scaleFactor}
+              scaleFactorGetter={(measurement) =>
+                pageScaleFactors[measurement.points[0].page] ??
+                DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
+              }
               tags={tags}
             />
           </>

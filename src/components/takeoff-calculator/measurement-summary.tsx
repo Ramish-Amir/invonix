@@ -6,20 +6,25 @@ import { Tag as TagIcon } from "lucide-react";
 
 interface MeasurementSummaryProps {
   measurements: Measurement[];
-  scaleFactor: number | null;
+  scaleFactor?: number | null; // deprecated
+  scaleFactorGetter?: (measurement: Measurement) => number;
   tags: Tag[];
 }
 
 export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({
   measurements,
   scaleFactor,
+  scaleFactorGetter,
   tags,
 }) => {
-  if (!scaleFactor || measurements.length === 0) return null;
+  if (measurements.length === 0) return null;
 
   // Group measurements by tag
   const measurementsByTag = measurements.reduce((acc, measurement) => {
     const tagId = measurement.tag?.id || "untagged";
+    const factor = scaleFactorGetter
+      ? scaleFactorGetter(measurement)
+      : scaleFactor ?? 1;
     if (!acc[tagId]) {
       acc[tagId] = {
         tag: measurement.tag,
@@ -28,7 +33,7 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({
       };
     }
     acc[tagId].measurements.push(measurement);
-    acc[tagId].totalLength += measurement.pixelDistance * scaleFactor;
+    acc[tagId].totalLength += measurement.pixelDistance * factor;
     return acc;
   }, {} as Record<string, { tag?: { id: string; name: string; color: string }; measurements: Measurement[]; totalLength: number }>);
 
@@ -83,7 +88,15 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({
           </span>
           <span className="text-2xl font-bold text-primary">
             {measurements
-              .reduce((sum, m) => sum + m.pixelDistance * scaleFactor, 0)
+              .reduce(
+                (sum, m) =>
+                  sum +
+                  m.pixelDistance *
+                    (scaleFactorGetter
+                      ? scaleFactorGetter(m)
+                      : scaleFactor ?? 1),
+                0
+              )
               .toFixed(2)}{" "}
             m
           </span>
