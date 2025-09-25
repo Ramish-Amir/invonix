@@ -371,9 +371,9 @@ export default function PDFViewer() {
                         <span className="text-xs text-gray-500">Zoom:</span>
                         <input
                           type="number"
-                          min={0.5}
-                          max={3}
-                          step={0.05}
+                          min={1}
+                          max={10}
+                          step={0.5}
                           value={scale}
                           onChange={(e) =>
                             setPageScales((prev) => ({
