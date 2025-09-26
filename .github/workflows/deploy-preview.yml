@@ -1,0 +1,33 @@
+name: Deploy preview to Firebase Hosting
+
+on:
+  pull_request:
+
+jobs:
+  build_and_preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'   # Next.js requires >=18.x in modern versions
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (static export)
+        run: |
+          # If your project uses next.config.js output: 'export', a single build suffices:
+          npm run build
+
+          # If your project needs explicit export (older Next.js), uncomment:
+          # npm run export
+      - name: Deploy to Firebase preview channel
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"                # lets the action post PR comment with preview URL
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          expires: 7d
