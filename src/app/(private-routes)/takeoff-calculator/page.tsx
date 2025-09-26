@@ -87,6 +87,7 @@ export default function PDFViewer() {
   const [dragPage, setDragPage] = useState<number | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
+  // const [pageInView, setPageInView] = useState(1);
 
   const onResize = useCallback<ResizeObserverCallback>((entries) => {
     const [entry] = entries;
@@ -172,32 +173,65 @@ export default function PDFViewer() {
     setIsDragging(false);
   };
 
-  // Track current page as user scrolls
+  // Track current page as user scrolls and a more precise page-in-view
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
     const children = container.querySelectorAll("[data-page-number]");
-    let closestPage = currentPage;
-    let minDistance = Infinity;
+    // let closestPage = currentPage;
+    // let minDistance = Infinity;
+
+    // children.forEach((child) => {
+    //   const rect = (child as HTMLElement).getBoundingClientRect();
+    //   // Distance from top of container
+    //   const distance = Math.abs(
+    //     rect.top - container.getBoundingClientRect().top
+    //   );
+    //   if (distance < minDistance) {
+    //     minDistance = distance;
+    //     const pageNum = parseInt(
+    //       (child as HTMLElement).getAttribute("data-page-number") || "1",
+    //       10
+    //     );
+    //     closestPage = pageNum;
+    //   }
+    // });
+
+    // if (closestPage !== currentPage) {
+    //   setCurrentPage(closestPage);
+    // }
+
+    // More precise page-in-view calculation
+    let newCurrentPage = currentPage;
 
     children.forEach((child) => {
       const rect = (child as HTMLElement).getBoundingClientRect();
-      // Distance from top of container
-      const distance = Math.abs(
-        rect.top - container.getBoundingClientRect().top
+      const containerRect = container.getBoundingClientRect();
+      const pageNum = parseInt(
+        (child as HTMLElement).getAttribute("data-page-number") || "1",
+        10
       );
-      if (distance < minDistance) {
-        minDistance = distance;
-        const pageNum = parseInt(
-          (child as HTMLElement).getAttribute("data-page-number") || "1",
-          10
-        );
-        closestPage = pageNum;
+
+      // Page fully visible in container
+      const fullyVisible =
+        rect.top >= containerRect.top && rect.bottom <= containerRect.bottom;
+
+      // Page is "current in-view" when:
+      // 1. It's fully visible (normal forward scroll), OR
+      // 2. Its bottom is inside the container (handles scrolling back up)
+      const candidate =
+        fullyVisible ||
+        (rect.top < containerRect.top && rect.bottom > containerRect.top);
+
+      if (candidate) {
+        if (pageNum !== newCurrentPage) {
+          newCurrentPage = pageNum;
+        }
       }
     });
 
-    if (closestPage !== currentPage) {
-      setCurrentPage(closestPage);
+    if (newCurrentPage !== currentPage) {
+      setCurrentPage(newCurrentPage);
     }
   }, [currentPage]);
 
