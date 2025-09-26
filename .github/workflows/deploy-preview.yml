@@ -6,6 +6,7 @@ on:
 jobs:
   build_and_preview:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -13,21 +14,27 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'   # Next.js requires >=18.x in modern versions
+          node-version: '18'
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
       - name: Build (static export)
         run: |
-          # If your project uses next.config.js output: 'export', a single build suffices:
           npm run build
-
-          # If your project needs explicit export (older Next.js), uncomment:
+          # If your Next.js requires explicit export (older Next versions):
           # npm run export
-      - name: Deploy to Firebase preview channel
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+
+      - name: Deploy to Firebase (preview channel)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"                # lets the action post PR comment with preview URL
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"    # comments preview URL on PR
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           expires: 7d
