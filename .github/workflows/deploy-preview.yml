@@ -6,6 +6,11 @@ on:
 jobs:
   build_and_preview:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Checkout
