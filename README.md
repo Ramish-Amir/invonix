@@ -95,14 +95,6 @@ npm run test
 
 - The project is configured to deploy previews and production via GitHub Actions and Vercel. See `.github/workflows/deploy-preview.yml` for the preview pipeline.
 
-## Contribution
-
-Contributions are welcome. Open an issue or submit a pull request describing the change and tests where applicable.
-
-## License
-
-Specify your license here (e.g., MIT). If you haven't chosen one yet, add a `LICENSE` file.
-
 ---
 
 Maintained by Ramish-Amir — built for fast, accurate plan takeoffs and straightforward invoice generation.
