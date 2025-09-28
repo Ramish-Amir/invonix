@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Invonix — PDF Takeoff Estimator & Invoice Manager
 
-## Getting Started
+A production-ready Next.js + TypeScript application for construction estimating and billing. The core of the project is a PDF takeoff/estimator that lets users measure directly on plan PDFs using color-coded tags, pin measurements, and review grouped summaries. The repository also contains an invoice generator and a lightweight invoice management system with PDF export.
 
-First, run the development server:
+## Key features
+
+- PDF takeoff estimator
+
+  - Measure directly on PDF plans with an interactive overlay.
+  - Color-coded tag system for grouping measurements by trade or material.
+  - Pinning, annotation, undo/redo, and adjustable calibration/scale controls.
+  - Grouped summaries, per-tag totals and exportable measurement reports.
+
+- Export all measurements with prices in CSV
+
+  - Store and edit unit prices per pipe size (unit price per meter) in the project settings.
+  - Associate takeoff measurements with pipe sizes and group costs under tags and sizes.
+  - View aggregated total cost for each pipe size and per-tag subtotals based on measured lengths.
+  - Download a CSV report listing each pipe size, unit price (per meter), measured length, and total cost calculated from the takeoff.
+
+- Invoice generator & manager
+
+  - Build invoices from takeoff summaries or manual line items.
+  - Render invoices as downloadable PDFs.
+  - Basic invoice listing and management UI.
+
+- CI/CD & deployment
+  - Automated CI pipeline for linting, type-checking and tests (configured in `.github/workflows`).
+  - Preview and production deployments via CI (Vercel/GitHub Actions integration).
+
+## Tech stack
+
+- Next.js (App Router) + TypeScript
+- React, Tailwind CSS
+- Firebase (Authentication, Firestore)
+- GitHub Actions for CI/CD
+
+## File map & important components
+
+- Takeoff / estimator UI and logic: `src/app/(private-routes)/takeoff-calculator` and `src/components/takeoff-calculator`
+- Tagging & selection: `src/components/takeoff-calculator/tag-selector.tsx`
+- Measurement rendering and overlay: `src/components/takeoff-calculator/measurement-overlay.tsx`
+- Measurement summaries: `src/components/takeoff-calculator/measurement-summary.tsx`
+- Invoice generation: `src/components/invoice-generator/InvoicePdf.tsx` and `src/components/invoice-generator/InvoiceDownloader.tsx`
+- Firebase initialization: `src/lib/firebase.ts`
+- CI workflows: `.github/workflows/*.yml` (for preview/deploy pipelines)
+
+## Getting started (development)
+
+1. Install dependencies
+
+```bash
+npm install
+# or
+pnpm install
+# or
+yarn install
+```
+
+2. Create a Firebase project and add a web app. Configure the following environment variables (example `.env.local`):
+
+```
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=app_id
+```
+
+3. Run the dev server
 
 ```bash
 npm run dev
 # or
-yarn dev
-# or
 pnpm dev
 # or
-bun dev
+yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing & CI
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+- CI runs TypeScript type checks, linting, and unit tests (see `.github/workflows`).
+- For local checks run:
 
-## Learn More
+```bash
+npm run build
+npm run lint
+npm run test
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- The project is configured to deploy previews and production via GitHub Actions and Vercel. See `.github/workflows/deploy-preview.yml` for the preview pipeline.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Contribution
 
-## Deploy on Vercel
+Contributions are welcome. Open an issue or submit a pull request describing the change and tests where applicable.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Specify your license here (e.g., MIT). If you haven't chosen one yet, add a `LICENSE` file.
+
+---
+
+Maintained by Ramish-Amir — built for fast, accurate plan takeoffs and straightforward invoice generation.
