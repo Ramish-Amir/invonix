@@ -93,7 +93,7 @@ npm run test
 
 ## Deployment
 
-- The project is configured to deploy previews and production via GitHub Actions and Vercel. See `.github/workflows/deploy-preview.yml` for the preview pipeline.
+- The project is configured to deploy previews and production via GitHub Actions. See `.github/workflows/deploy-preview.yml` for the preview pipeline.
 
 ---
 
