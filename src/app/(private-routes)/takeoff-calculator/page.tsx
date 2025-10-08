@@ -250,12 +250,12 @@ export default function PDFViewer() {
 
       <div className="flex justify-between items-center">
         <div className="flex gap-2 my-4">
-          <Button variant={"outline"} onClick={() => setScale((s) => s + 0.25)}>
+          <Button variant={"outline"} onClick={() => setScale((s) => s + 1)}>
             Zoom In
           </Button>
           <Button
             variant={"outline"}
-            onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
+            onClick={() => setScale((s) => Math.max(0.5, s - 1))}
           >
             Zoom Out
           </Button>
