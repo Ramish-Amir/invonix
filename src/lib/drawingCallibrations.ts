@@ -17,6 +17,11 @@ export const DrawingCalibrationsV1: Record<string, Record<string, number>> = {
     "75": 0.0762, // 1:75 scale => 1 px = 0.0762 m
     "50": 0.0622, // 1:50 scale => 1 px = 0.0622 m
   },
+  "54x36": {
+    // Same as 54x36
+    "100": 0.1713, // 1:100 scale => 1 px = 0.1713 m (This is confirmed)
+    "50": 0.0855, // 1:50 scale => 1 px = 0.0855 m (This is confirmed)
+  },
 };
 
 export const DrawingCalibrations = {

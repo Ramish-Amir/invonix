@@ -40,6 +40,7 @@ export const DrawingCallibrationScale = ({
             <SelectItem value="125">1:125</SelectItem>
             <SelectItem value="100">1:100</SelectItem>
             <SelectItem value="75">1:75</SelectItem>
+            <SelectItem value="50">1:50</SelectItem>
           </SelectGroup>
         </SelectContent>
       </Select>
