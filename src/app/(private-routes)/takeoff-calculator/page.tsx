@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, Save, Info } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
@@ -10,11 +10,28 @@ import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callib
 import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
 import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
 import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
+import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
+import {
+  DocumentManager,
+  DocumentInfoDialog,
+} from "@/components/takeoff-calculator/document-manager";
+import { Button } from "@/components/ui/button";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { useAuth } from "@/hooks/useAuth";
 import {
   DEFAULT_CALLIBRATION_VALUE,
   DrawingCalibrations,
   getDrawingCallibrations,
 } from "@/lib/drawingCallibrations";
+import {
+  MeasurementDocument,
+  Measurement,
+  Point,
+} from "@/lib/types/measurement";
+import {
+  createMeasurementDocument,
+  getMeasurementDocument,
+} from "@/lib/services/measurementService";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -29,28 +46,11 @@ const options = {
 
 type PDFFile = string | File | null;
 
-interface Point {
-  x: number;
-  y: number;
-  page: number;
-}
-
-interface Measurement {
-  id: number;
-  points: [Point, Point];
-  pixelDistance: number;
-  page: number;
-  tag?: {
-    id: string;
-    name: string;
-    color: string;
-  };
-}
-
 const maxWidth = 800;
 
 export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   const [file, setFile] = useState<PDFFile>("/sample.pdf");
   const [numPages, setNumPages] = useState<number>();
@@ -72,6 +72,11 @@ export default function PDFViewer() {
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
 
+  // Document management state
+  const [currentDocument, setCurrentDocument] =
+    useState<MeasurementDocument | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
 
@@ -80,6 +85,17 @@ export default function PDFViewer() {
     { id: "1", name: "65", color: "#ef4444" },
   ]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
+
+  // Auto-save functionality
+  const { forceSave } = useAutoSave({
+    document: currentDocument,
+    measurements,
+    tags,
+    pageScales,
+    callibrationScale,
+    viewportDimensions,
+    onDocumentUpdate: setCurrentDocument,
+  });
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -103,9 +119,12 @@ export default function PDFViewer() {
     }
   }, [onResize]);
 
-  function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null;
-    setFile(nextFile);
+  const handleNewTakeoff = () => {
+    setUploadDialogOpen(true);
+  };
+
+  const handleFileSelect = (selectedFile: File) => {
+    setFile(selectedFile);
     setNumPages(undefined);
     setMeasurements([]);
     setPageScales({});
@@ -113,7 +132,59 @@ export default function PDFViewer() {
     setHistory([]);
     setRedoStack([]);
     setPinnedIds(new Set());
-  }
+    setCurrentDocument(null);
+  };
+
+  const handleNewMeasurement = async (fileName: string) => {
+    if (!user) return;
+
+    try {
+      const documentId = await createMeasurementDocument({
+        name: fileName.replace(/\.pdf$/i, ""),
+        fileName,
+        userId: user.uid,
+      });
+
+      const newDocument: MeasurementDocument = {
+        id: documentId,
+        name: fileName.replace(/\.pdf$/i, ""),
+        fileName,
+        measurements: [],
+        tags: [],
+        pageScales: {},
+        callibrationScale: {},
+        viewportDimensions: { width: 0, height: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: user.uid,
+      };
+
+      setCurrentDocument(newDocument);
+    } catch (error) {
+      console.error("Error creating new measurement document:", error);
+    }
+  };
+
+  const handleExistingMeasurementSelect = async (
+    document: MeasurementDocument
+  ) => {
+    try {
+      const fullDocument = await getMeasurementDocument(document.id);
+      if (fullDocument) {
+        setCurrentDocument(fullDocument);
+        setMeasurements(fullDocument.measurements);
+        setTags(fullDocument.tags);
+        setPageScales(fullDocument.pageScales);
+        setCallibrationScale(fullDocument.callibrationScale);
+        setViewportDimensions(fullDocument.viewportDimensions);
+        setHistory([]);
+        setRedoStack([]);
+        setPinnedIds(new Set());
+      }
+    } catch (error) {
+      console.error("Error loading existing measurement document:", error);
+    }
+  };
 
   function onDocumentLoadSuccess({ numPages: nextNumPages }: any) {
     setNumPages(nextNumPages);
@@ -161,6 +232,8 @@ export default function PDFViewer() {
       pixelDistance,
       tag: selectedTag || undefined,
       page: pageNum,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const updatedMeasurements = [...measurements, newMeasurement];
@@ -278,7 +351,9 @@ export default function PDFViewer() {
   ) => {
     setMeasurements((prev) =>
       prev.map((m) =>
-        m.id === measurementId ? { ...m, tag: tag || undefined } : m
+        m.id === measurementId
+          ? { ...m, tag: tag || undefined, updatedAt: new Date() }
+          : m
       )
     );
   };
@@ -311,9 +386,40 @@ export default function PDFViewer() {
     setRedoStack([]);
   };
 
+  const handleDocumentUpdate = (updatedDocument: MeasurementDocument) => {
+    setCurrentDocument(updatedDocument);
+  };
+
   return (
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
+
+      {/* Document Manager */}
+      {currentDocument && (
+        <div className="mb-4">
+          <DocumentManager
+            document={currentDocument}
+            onDocumentUpdate={handleDocumentUpdate}
+          >
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={forceSave}
+                className="h-8"
+              >
+                <Save className="w-3 h-3 mr-1" />
+                Save
+              </Button>
+              <DocumentInfoDialog document={currentDocument}>
+                <Button size="sm" variant="outline" className="h-8">
+                  <Info className="w-3 h-3" />
+                </Button>
+              </DocumentInfoDialog>
+            </div>
+          </DocumentManager>
+        </div>
+      )}
 
       <div className="flex justify-between items-center flex-wrap gap-4 my-4">
         {/* Left: File Info */}
@@ -324,20 +430,23 @@ export default function PDFViewer() {
             : file?.name ?? "No file selected"}
         </div>
 
-        {/* Right: Upload */}
+        {/* Right: New Take-off */}
         <div className="flex items-center gap-2">
-          <label className="flex h-9 items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
+          <Button onClick={handleNewTakeoff} className="h-9">
             <Upload className="w-4 h-4 mr-2" />
-            Upload PDF
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={onFileChange}
-              className="hidden"
-            />
-          </label>
+            New Take-off
+          </Button>
         </div>
       </div>
+
+      {/* File Upload Dialog */}
+      <FileUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onFileSelect={handleFileSelect}
+        onMeasurementSelect={handleExistingMeasurementSelect}
+        onNewMeasurement={handleNewMeasurement}
+      />
 
       {/* Tag Selector */}
       <div className="mb-4">
