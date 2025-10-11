@@ -147,7 +147,7 @@ export function FileUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-w-[95vw] w-full">
         <DialogHeader>
           <DialogTitle>New Take-off Project</DialogTitle>
           <DialogDescription>
@@ -156,7 +156,7 @@ export function FileUploadDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           {/* File Upload */}
           <div className="space-y-2">
             <Label htmlFor="file-upload">Select PDF File</Label>
@@ -235,7 +235,7 @@ export function FileUploadDialog({
 
           {/* Existing Documents Selector */}
           {measurementChoice === "existing" && (
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Select Measurement Document</Label>
               <Popover open={searchOpen} onOpenChange={setSearchOpen}>
                 <PopoverTrigger asChild>
@@ -243,25 +243,37 @@ export function FileUploadDialog({
                     variant="outline"
                     role="combobox"
                     aria-expanded={searchOpen}
-                    className="w-full justify-between"
+                    className="w-full justify-start min-w-0"
                   >
                     {selectedDocument ? (
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        <span className="truncate">
-                          {selectedDocument.name}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {selectedDocument.measurements.length} measurements
-                        </Badge>
+                      <div className="flex items-center justify-between min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <FileText className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate flex-1 min-w-0 max-w-[200px]">
+                            {selectedDocument.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge variant="outline" className="text-xs">
+                            {selectedDocument.measurements.length} measurements
+                          </Badge>
+                          <Search className="h-4 w-4 opacity-50" />
+                        </div>
                       </div>
                     ) : (
-                      "Select measurement document..."
+                      <div className="flex items-center gap-2 w-full">
+                        <span className="flex-1 text-left">
+                          Select measurement document...
+                        </span>
+                        <Search className="h-4 w-4 flex-shrink-0 opacity-50" />
+                      </div>
                     )}
-                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
+                <PopoverContent
+                  className="w-[500px] max-w-[90vw] p-0"
+                  align="start"
+                >
                   <Command>
                     <CommandInput
                       placeholder="Search documents..."
@@ -289,8 +301,8 @@ export function FileUploadDialog({
                                 setSearchOpen(false);
                               }}
                             >
-                              <div className="flex items-center gap-2 w-full">
-                                <FileText className="w-4 h-4" />
+                              <div className="flex items-center gap-2 w-full min-w-0">
+                                <FileText className="w-4 h-4 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium truncate">
                                     {doc.name}
@@ -300,7 +312,10 @@ export function FileUploadDialog({
                                     measurements
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs flex-shrink-0"
+                                >
                                   {new Date(doc.updatedAt).toLocaleDateString()}
                                 </Badge>
                               </div>
