@@ -176,7 +176,7 @@ export function FileUploadDialog({
                   <span className="text-sm text-green-800 font-medium">
                     {selectedFile.name}
                   </span>
-                  <Badge variant="secondary" className="ml-auto">
+                  <Badge variant="secondary" className="ml-auto min-w-max">
                     {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
                   </Badge>
                 </div>
@@ -247,9 +247,9 @@ export function FileUploadDialog({
                   >
                     {selectedDocument ? (
                       <div className="flex items-center justify-between min-w-0 flex-1">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="flex justify-start items-center gap-2 min-w-0 flex-1">
                           <FileText className="w-4 h-4 flex-shrink-0" />
-                          <span className="truncate flex-1 min-w-0 max-w-[200px]">
+                          <span className="truncate min-w-0 max-w-[200px]">
                             {selectedDocument.name}
                           </span>
                         </div>
