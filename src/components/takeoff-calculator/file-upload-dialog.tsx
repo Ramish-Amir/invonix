@@ -248,8 +248,14 @@ export function FileUploadDialog({
           </div>
 
           {/* Existing Documents Selector */}
-          {measurementChoice === "existing" && (
-            <div className="space-y-2 min-w-0">
+          <div
+            className={`overflow-hidden transition-all duration-500 ease-out ${
+              measurementChoice === "existing"
+                ? "max-h-[120px] opacity-100"
+                : "max-h-0 opacity-0"
+            }`}
+          >
+            <div className="space-y-2 min-w-0 pt-2">
               <Label>Select Measurement Document</Label>
               <Popover open={searchOpen} onOpenChange={setSearchOpen}>
                 <PopoverTrigger asChild>
@@ -342,7 +348,7 @@ export function FileUploadDialog({
                 </PopoverContent>
               </Popover>
             </div>
-          )}
+          </div>
         </div>
 
         <DialogFooter>
