@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Upload, FileText, Save, Info } from "lucide-react";
+import { Upload, FileText, Save, Info, Undo, Redo } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
@@ -32,6 +32,7 @@ import {
   createMeasurementDocument,
   getMeasurementDocument,
 } from "@/lib/services/measurementService";
+import { Card, CardContent } from "@/components/ui/card";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -52,7 +53,7 @@ export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
-  const [file, setFile] = useState<PDFFile>("/sample.pdf");
+  const [file, setFile] = useState<PDFFile>(null);
   const [numPages, setNumPages] = useState<number>();
   // Per-page scale (zoom) and calibration factor
   const [pageScales, setPageScales] = useState<{ [page: number]: number }>({});
@@ -421,23 +422,27 @@ export default function PDFViewer() {
         </div>
       )}
 
-      <div className="flex justify-between items-center flex-wrap gap-4 my-4">
-        {/* Left: File Info */}
-        <div className="flex gap-2 items-center text-muted-foreground">
-          <FileText />
-          {typeof file === "string"
-            ? file.split("/").pop()
-            : file?.name ?? "No file selected"}
-        </div>
+      {file && (
+        <div className="flex justify-between items-center flex-wrap gap-4 my-4">
+          {/* Left: File Info */}
+          <div className="flex gap-2 items-center text-muted-foreground">
+            <FileText />
+            {file
+              ? typeof file === "string"
+                ? file.split("/").pop()
+                : file?.name
+              : "No project loaded"}
+          </div>
 
-        {/* Right: New Take-off */}
-        <div className="flex items-center gap-2">
-          <Button onClick={handleNewTakeoff} className="h-9">
-            <Upload className="w-4 h-4 mr-2" />
-            New Take-off
-          </Button>
+          {/* Right: New Take-off */}
+          <div className="flex items-center gap-2">
+            <Button onClick={handleNewTakeoff} className="h-9">
+              <Upload className="w-4 h-4 mr-2" />
+              New Take-off
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* File Upload Dialog */}
       <FileUploadDialog
@@ -448,166 +453,221 @@ export default function PDFViewer() {
         onNewMeasurement={handleNewMeasurement}
       />
 
-      {/* Tag Selector */}
-      <div className="mb-4">
-        <TagSelector
-          tags={tags}
-          selectedTag={selectedTag}
-          onTagSelect={setSelectedTag}
-          onTagCreate={handleTagCreate}
-          onTagDelete={handleTagDelete}
-        />
-      </div>
-
-      {/* ✅ Sticky toolbar for the current page */}
-      <div className="sticky top-0 left-0 right-0 z-[1] flex items-center justify-between px-4 py-2 border bg-gray-50 rounded-t-lg rounded-b-none">
-        <span className="text-xs text-gray-500">Page {currentPage}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Scale:</span>
-          <DrawingCallibrationScale
-            setCallibrationScale={(newCallibrationScale: string) =>
-              setCallibrationScale((prev) => ({
-                ...prev,
-                [currentPage]: newCallibrationScale,
-              }))
-            }
-            callibrationScale={callibrationScale[currentPage]}
-          />
-          <span className="text-xs text-gray-500">Zoom:</span>
-          <input
-            type="number"
-            min={1}
-            max={10}
-            step={1}
-            value={pageScales[currentPage] ?? 1.25}
-            onChange={(e) =>
-              setPageScales((prev) => ({
-                ...prev,
-                [currentPage]: Number(e.target.value),
-              }))
-            }
-            className="w-16 px-2 py-1 border rounded text-xs"
-            aria-label={`Zoom for page ${currentPage}`}
+      {/* Tag Selector - Only show when file is loaded */}
+      {file && (
+        <div className="mb-4">
+          <TagSelector
+            tags={tags}
+            selectedTag={selectedTag}
+            onTagSelect={setSelectedTag}
+            onTagCreate={handleTagCreate}
+            onTagDelete={handleTagDelete}
           />
         </div>
-      </div>
+      )}
 
+      {/* ✅ Sticky toolbar for the current page - Only show when file is loaded */}
       {file && (
-        <div className="relative max-w-[100%] max-h-[100vh] ">
-          <TakeoffControlMenu
-            scale={pageScales[currentPage] ?? 1.25}
-            setScale={(newScale: number) =>
-              setPageScales((prev) => ({ ...prev, [currentPage]: newScale }))
-            }
-            handleRedo={handleRedo}
-            handleUndo={handleUndo}
-            pinnedCount={pinnedIds.size}
-            onClearAllPins={() => setPinnedIds(new Set())}
-            currentPage={currentPage}
-            totalPages={numPages || 0}
-          />
-          <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
-            <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
-          </div>
-          <div
-            className="max-w-[100%] max-h-[100vh] overflow-auto"
-            ref={containerRef}
-          >
-            {/* PDF Document */}
-            <Document
-              file={file}
-              onLoadSuccess={onDocumentLoadSuccess}
-              options={options}
+        <div className="sticky top-0 left-0 right-0 z-[1] flex items-center justify-between px-4 py-2 border bg-gray-50 rounded-t-lg rounded-b-none">
+          <span className="text-xs text-gray-500">Page {currentPage}</span>
+          <div className="flex items-center gap-2">
+            {/* Undo/Redo Buttons */}
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0}
+              className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Undo"
             >
-              {Array.from(new Array(numPages), (_, index) => {
-                const pageNumber = index + 1;
-                const isVisible = Math.abs(pageNumber - currentPage) <= 1;
-                const scale = pageScales[pageNumber] ?? 1.25;
-                const scaleFactor =
-                  getDrawingCallibrations(
-                    callibrationScale[pageNumber]?.toString(),
-                    viewportDimensions
-                  ) ?? DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
+              <Undo className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Redo"
+            >
+              <Redo className="w-4 h-4" />
+            </button>
 
-                return (
-                  <div
-                    key={`page_container_${pageNumber}`}
-                    className="relative overflow-x-auto mb-6"
-                  >
-                    <div
-                      key={`pdf_page_${pageNumber}`}
-                      className="relative border border-t-0 shadow-sm"
-                      data-page-number={pageNumber}
-                      onMouseDown={(e) => handleMouseDown(e, pageNumber)}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                    >
-                      {isVisible && (
-                        <>
-                          <Page
-                            pageNumber={pageNumber}
-                            scale={scale}
-                            width={
-                              containerWidth
-                                ? Math.min(containerWidth, maxWidth)
-                                : maxWidth
-                            }
-                            renderAnnotationLayer={false}
-                            renderTextLayer={false}
-                            onRenderSuccess={(page) => {
-                              page.cleanup();
-                              setPagesWidth((prev) => ({
-                                ...prev,
-                                [pageNumber]: Math.max(page.width, page.height),
-                              }));
-                              const viewport = page.getViewport({ scale: 1 });
-                              setViewportDimensions({
-                                width: Number((viewport.width / 72).toFixed(0)),
-                                height: Number(
-                                  (viewport.height / 72).toFixed(0)
-                                ),
-                              });
-                            }}
-                          />
-                          <MeasurementOverlay
-                            pageNumber={pageNumber}
-                            measurements={measurements}
-                            scale={scale}
-                            scaleFactor={scaleFactor}
-                            hoveredId={hoveredId}
-                            pinnedIds={pinnedIds}
-                            isDragging={isDragging}
-                            dragStart={dragStart}
-                            dragEnd={dragEnd}
-                            dragPage={dragPage}
-                            setHoveredId={setHoveredId}
-                            onTogglePin={handleTogglePin}
-                            onTagChange={handleMeasurementTagChange}
-                            onDeleteMeasurement={handleDeleteMeasurement}
-                            tags={tags}
-                            pageWidth={pagesWidth[pageNumber] || 0} // Changes for each page after every zoom-level update
-                          />
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </Document>
+            <div className="w-px h-4 bg-gray-300 mx-1"></div>
+
+            <span className="text-xs text-gray-500">Scale:</span>
+            <DrawingCallibrationScale
+              setCallibrationScale={(newCallibrationScale: string) =>
+                setCallibrationScale((prev) => ({
+                  ...prev,
+                  [currentPage]: newCallibrationScale,
+                }))
+              }
+              callibrationScale={callibrationScale[currentPage]}
+            />
+            <span className="text-xs text-gray-500">Zoom:</span>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              value={pageScales[currentPage] ?? 1.25}
+              onChange={(e) =>
+                setPageScales((prev) => ({
+                  ...prev,
+                  [currentPage]: Number(e.target.value),
+                }))
+              }
+              className="w-16 px-2 py-1 border rounded text-xs"
+              aria-label={`Zoom for page ${currentPage}`}
+            />
           </div>
         </div>
       )}
 
-      <div className="mt-6">
-        {measurements.length > 0 && (
-          <>
-            <MeasurementSummary
-              measurements={measurements}
-              tags={tags}
-              callibrationScale={callibrationScale}
-              viewportDimensions={viewportDimensions}
+      {/* Hidden container for scroll functionality - always present */}
+      <div
+        className="max-w-[100%] max-h-[100vh] overflow-auto"
+        ref={containerRef}
+        style={{ display: file ? "block" : "none" }}
+      >
+        {/* PDF Document - only render when file exists */}
+        {file && (
+          <Document
+            file={file}
+            onLoadSuccess={onDocumentLoadSuccess}
+            options={options}
+          >
+            {Array.from(new Array(numPages), (_, index) => {
+              const pageNumber = index + 1;
+              const isVisible = Math.abs(pageNumber - currentPage) <= 1;
+              const scale = pageScales[pageNumber] ?? 1.25;
+              const scaleFactor =
+                getDrawingCallibrations(
+                  callibrationScale[pageNumber]?.toString(),
+                  viewportDimensions
+                ) ?? DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
+
+              return (
+                <div
+                  key={`page_container_${pageNumber}`}
+                  className="relative overflow-x-auto mb-6"
+                >
+                  <div
+                    key={`pdf_page_${pageNumber}`}
+                    className="relative border border-t-0 shadow-sm"
+                    data-page-number={pageNumber}
+                    onMouseDown={(e) => handleMouseDown(e, pageNumber)}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                  >
+                    {isVisible && (
+                      <>
+                        <Page
+                          pageNumber={pageNumber}
+                          scale={scale}
+                          width={
+                            containerWidth
+                              ? Math.min(containerWidth, maxWidth)
+                              : maxWidth
+                          }
+                          renderAnnotationLayer={false}
+                          renderTextLayer={false}
+                          onRenderSuccess={(page) => {
+                            page.cleanup();
+                            setPagesWidth((prev) => ({
+                              ...prev,
+                              [pageNumber]: Math.max(page.width, page.height),
+                            }));
+                            const viewport = page.getViewport({ scale: 1 });
+                            setViewportDimensions({
+                              width: Number((viewport.width / 72).toFixed(0)),
+                              height: Number((viewport.height / 72).toFixed(0)),
+                            });
+                          }}
+                        />
+                        <MeasurementOverlay
+                          pageNumber={pageNumber}
+                          measurements={measurements}
+                          scale={scale}
+                          scaleFactor={scaleFactor}
+                          hoveredId={hoveredId}
+                          pinnedIds={pinnedIds}
+                          isDragging={isDragging}
+                          dragStart={dragStart}
+                          dragEnd={dragEnd}
+                          dragPage={dragPage}
+                          setHoveredId={setHoveredId}
+                          onTogglePin={handleTogglePin}
+                          onTagChange={handleMeasurementTagChange}
+                          onDeleteMeasurement={handleDeleteMeasurement}
+                          tags={tags}
+                          pageWidth={pagesWidth[pageNumber] || 0}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </Document>
+        )}
+      </div>
+
+      {/* Control Menu and Viewport Display - Only show when file is loaded */}
+      {file && (
+        <>
+          <div className="relative max-w-[100%] max-h-[100vh]">
+            <TakeoffControlMenu
+              scale={pageScales[currentPage] ?? 1.25}
+              setScale={(newScale: number) =>
+                setPageScales((prev) => ({ ...prev, [currentPage]: newScale }))
+              }
+              pinnedCount={pinnedIds.size}
+              onClearAllPins={() => setPinnedIds(new Set())}
+              currentPage={currentPage}
+              totalPages={numPages || 0}
             />
-            {/* <MeasurementList
+            <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
+              <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Empty State - Only show when no file is loaded */}
+      {!file && (
+        <div>
+          <Card className="rounded-lg mt-6">
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
+                <div className="w-20 h-20 mx-auto mb-6 bg-gray-50 rounded-full flex items-center justify-center">
+                  <FileText className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  No Take-off Project Loaded
+                </h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Start a new take-off project by uploading a PDF drawing. You
+                  can create new measurements or continue with existing ones.
+                </p>
+                <Button onClick={handleNewTakeoff} size="lg" className="px-6">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Start New Take-off
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {file && (
+        <div className="mt-6">
+          {measurements.length > 0 && (
+            <>
+              <MeasurementSummary
+                measurements={measurements}
+                tags={tags}
+                callibrationScale={callibrationScale}
+                viewportDimensions={viewportDimensions}
+              />
+              {/* <MeasurementList
               measurements={measurements}
               // Pass per-measurement scaleFactor based on page
               scaleFactorGetter={(measurement) =>
@@ -617,9 +677,10 @@ export default function PDFViewer() {
               tags={tags}
               onMeasurementTagChange={handleMeasurementTagChange}
             /> */}
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
