@@ -397,7 +397,7 @@ export default function PDFViewer() {
 
       {/* Document Manager */}
       {currentDocument && (
-        <div className="mb-4">
+        <div className="mt-6 mb-4">
           <DocumentManager
             document={currentDocument}
             onDocumentUpdate={handleDocumentUpdate}
@@ -468,14 +468,16 @@ export default function PDFViewer() {
 
       {/* ✅ Sticky toolbar for the current page - Only show when file is loaded */}
       {file && (
-        <div className="sticky top-0 left-0 right-0 z-[1] flex items-center justify-between px-4 py-2 border bg-gray-50 rounded-t-lg rounded-b-none">
-          <span className="text-xs text-gray-500">Page {currentPage}</span>
+        <div className="sticky top-0 left-0 right-0 z-[1] flex items-center justify-between px-4 py-2 border border-border bg-muted/50 rounded-t-lg rounded-b-none">
+          <span className="text-xs text-muted-foreground">
+            Page {currentPage}
+          </span>
           <div className="flex items-center gap-2">
             {/* Undo/Redo Buttons */}
             <button
               onClick={handleUndo}
               disabled={history.length === 0}
-              className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
               title="Undo"
             >
               <Undo className="w-4 h-4" />
@@ -483,15 +485,15 @@ export default function PDFViewer() {
             <button
               onClick={handleRedo}
               disabled={redoStack.length === 0}
-              className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
               title="Redo"
             >
               <Redo className="w-4 h-4" />
             </button>
 
-            <div className="w-px h-4 bg-gray-300 mx-1"></div>
+            <div className="w-px h-4 bg-border mx-1"></div>
 
-            <span className="text-xs text-gray-500">Scale:</span>
+            <span className="text-xs text-muted-foreground">Scale:</span>
             <DrawingCallibrationScale
               setCallibrationScale={(newCallibrationScale: string) =>
                 setCallibrationScale((prev) => ({
@@ -501,7 +503,7 @@ export default function PDFViewer() {
               }
               callibrationScale={callibrationScale[currentPage]}
             />
-            <span className="text-xs text-gray-500">Zoom:</span>
+            <span className="text-xs text-muted-foreground">Zoom:</span>
             <input
               type="number"
               min={1}
@@ -514,7 +516,7 @@ export default function PDFViewer() {
                   [currentPage]: Number(e.target.value),
                 }))
               }
-              className="w-16 px-2 py-1 border rounded text-xs"
+              className="w-16 px-2 py-1 border border-input rounded text-xs bg-background text-foreground"
               aria-label={`Zoom for page ${currentPage}`}
             />
           </div>
@@ -637,13 +639,13 @@ export default function PDFViewer() {
           <Card className="rounded-lg mt-6">
             <CardContent className="p-6">
               <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
-                <div className="w-20 h-20 mx-auto mb-6 bg-gray-50 rounded-full flex items-center justify-center">
-                  <FileText className="w-10 h-10 text-gray-400" />
+                <div className="w-20 h-20 mx-auto mb-6 bg-muted rounded-full flex items-center justify-center">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                <h3 className="text-lg font-semibold text-foreground mb-3">
                   No Take-off Project Loaded
                 </h3>
-                <p className="text-gray-600 mb-6 leading-relaxed">
+                <p className="text-muted-foreground mb-6 leading-relaxed">
                   Start a new take-off project by uploading a PDF drawing. You
                   can create new measurements or continue with existing ones.
                 </p>

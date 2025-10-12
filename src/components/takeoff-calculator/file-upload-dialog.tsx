@@ -171,9 +171,9 @@ export function FileUploadDialog({
                 />
               </div>
               {selectedFile && (
-                <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                  <FileText className="w-4 h-4 text-green-600" />
-                  <span className="text-sm text-green-800 font-medium">
+                <div className="flex items-center gap-2 p-2 bg-muted/50 border border-border rounded-md">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-foreground font-medium">
                     {selectedFile.name}
                   </span>
                   <Badge variant="secondary" className="ml-auto min-w-max">
@@ -295,7 +295,7 @@ export function FileUploadDialog({
                           {existingDocuments.map((doc) => (
                             <CommandItem
                               key={doc.id}
-                              value={doc.name}
+                              value={`${doc.id}-${doc.name}`}
                               onSelect={() => {
                                 setSelectedDocument(doc);
                                 setSearchOpen(false);
