@@ -159,28 +159,42 @@ export function FileUploadDialog({
         <div className="space-y-6 min-w-0">
           {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="file-upload">Select PDF File</Label>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  id="file-upload"
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleFileChange}
-                  className="flex-1"
-                />
-              </div>
-              {selectedFile && (
-                <div className="flex items-center gap-2 p-2 bg-muted/50 border border-border rounded-md">
-                  <FileText className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-foreground font-medium">
-                    {selectedFile.name}
-                  </span>
-                  <Badge variant="secondary" className="ml-auto min-w-max">
-                    {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
-                  </Badge>
-                </div>
-              )}
+            <Label>Select PDF File</Label>
+            <div className="relative">
+              <input
+                id="file-upload"
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <Button
+                variant="outline"
+                className="w-full justify-start min-w-0 h-auto p-3"
+                asChild={false}
+              >
+                {selectedFile ? (
+                  <div className="flex items-center justify-between min-w-0 flex-1">
+                    <div className="flex justify-start items-center gap-2 min-w-0 flex-1">
+                      <FileText className="w-4 h-4 flex-shrink-0 text-primary" />
+                      <span className="truncate min-w-0 max-w-[200px] text-left">
+                        {selectedFile.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs">
+                        {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+                      </Badge>
+                      <Upload className="h-4 w-4 opacity-50" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 w-full">
+                    <span className="flex-1 text-left">Choose PDF file...</span>
+                    <Upload className="h-4 w-4 flex-shrink-0 opacity-50" />
+                  </div>
+                )}
+              </Button>
             </div>
           </div>
 
