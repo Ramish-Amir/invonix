@@ -313,7 +313,7 @@ export function FileUploadDialog({
                           <FileText className="w-4 h-4 flex-shrink-0" />
                           <span
                             title={selectedDocument.name}
-                            className="truncate min-w-0 flex-1"
+                            className="truncate min-w-0 flex-1 text-left"
                           >
                             {selectedDocument.name}
                           </span>
