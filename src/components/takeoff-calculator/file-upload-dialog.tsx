@@ -177,7 +177,10 @@ export function FileUploadDialog({
                   <div className="flex items-center justify-between min-w-0 flex-1">
                     <div className="flex justify-start items-center gap-2 min-w-0 flex-1">
                       <FileText className="w-4 h-4 flex-shrink-0 text-primary" />
-                      <span className="truncate min-w-0 max-w-[200px] text-left">
+                      <span
+                        title={selectedFile.name}
+                        className="truncate min-w-0 flex-1 text-left"
+                      >
                         {selectedFile.name}
                       </span>
                     </div>
@@ -269,7 +272,10 @@ export function FileUploadDialog({
                       <div className="flex items-center justify-between min-w-0 flex-1">
                         <div className="flex justify-start items-center gap-2 min-w-0 flex-1">
                           <FileText className="w-4 h-4 flex-shrink-0" />
-                          <span className="truncate min-w-0 max-w-[200px]">
+                          <span
+                            title={selectedDocument.name}
+                            className="truncate min-w-0 flex-1"
+                          >
                             {selectedDocument.name}
                           </span>
                         </div>
