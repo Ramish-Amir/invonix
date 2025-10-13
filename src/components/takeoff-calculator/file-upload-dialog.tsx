@@ -202,50 +202,89 @@ export function FileUploadDialog({
           </div>
 
           {/* Measurement Choice */}
-          <div className="space-y-4">
-            <Label>Measurement Options</Label>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-semibold">
+                Measurement Options
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Choose how to handle measurements for your new take-off project.
+              </p>
+            </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="new-measurements"
-                  name="measurement-choice"
-                  value="new"
-                  checked={measurementChoice === "new"}
-                  onChange={(e) =>
-                    setMeasurementChoice(e.target.value as "new")
-                  }
-                  className="w-4 h-4"
-                />
-                <Label
-                  htmlFor="new-measurements"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Start with new measurements
-                </Label>
+            <div className="space-y-2">
+              {/* New Measurements Option */}
+              <div
+                className={`relative cursor-pointer rounded-md border p-3 transition-all duration-200 ${
+                  measurementChoice === "new"
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-muted-foreground/50"
+                }`}
+                onClick={() => setMeasurementChoice("new")}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Plus className="w-4 h-4 text-primary flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-medium text-foreground">
+                        New Measurements
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Start fresh with new measurements for this drawing.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-shrink-0">
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+                        measurementChoice === "new"
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground"
+                      }`}
+                    >
+                      {measurementChoice === "new" && (
+                        <div className="w-full h-full rounded-full bg-primary-foreground scale-50"></div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="existing-measurements"
-                  name="measurement-choice"
-                  value="existing"
-                  checked={measurementChoice === "existing"}
-                  onChange={(e) =>
-                    setMeasurementChoice(e.target.value as "existing")
-                  }
-                  className="w-4 h-4"
-                />
-                <Label
-                  htmlFor="existing-measurements"
-                  className="flex items-center gap-2"
-                >
-                  <Search className="w-4 h-4" />
-                  Use existing measurements
-                </Label>
+              {/* Existing Measurements Option */}
+              <div
+                className={`relative cursor-pointer rounded-md border p-3 transition-all duration-200 ${
+                  measurementChoice === "existing"
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-muted-foreground/50"
+                }`}
+                onClick={() => setMeasurementChoice("existing")}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Search className="w-4 h-4 text-primary flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Existing Measurements
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Continue with measurements from a previous project.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-shrink-0">
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+                        measurementChoice === "existing"
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground"
+                      }`}
+                    >
+                      {measurementChoice === "existing" && (
+                        <div className="w-full h-full rounded-full bg-primary-foreground scale-50"></div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
