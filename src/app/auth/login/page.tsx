@@ -4,7 +4,7 @@ import LoginForm from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen light:bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-neutral-900">
       <LoginForm />
     </div>
   );
