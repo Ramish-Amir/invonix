@@ -9,7 +9,7 @@ export function ContentLayout({ title, children }: ContentLayoutProps) {
   return (
     <div>
       <Navbar title={title} />
-      <div className="container max-w-full pt-8 pb-8 px-4 sm:px-8">
+      <div className="container max-w-full min-h-[calc(100vh-57px)] pt-8 pb-8 px-4 sm:px-8">
         {children}
       </div>
     </div>
