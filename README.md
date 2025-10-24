@@ -4,25 +4,43 @@ A production-ready Next.js + TypeScript application for construction estimating 
 
 ## Key features
 
-- PDF takeoff estimator
+### Estimation & Takeoff Tools
 
-  - Measure directly on PDF plans with an interactive overlay.
-  - Color-coded tag system for grouping measurements by trade or material.
-  - Pinning, annotation, undo/redo, and adjustable calibration/scale controls.
-  - Grouped summaries, per-tag totals and exportable measurement reports.
+- **PDF Takeoff Calculator**
 
-- Export all measurements with prices in CSV
+  - Interactive measurement tools for direct PDF plan analysis
+  - Color-coded tagging system for organizing measurements by trade or material
+  - Pin measurements, annotations, undo/redo functionality
+  - Adjustable calibration and scale controls for accurate measurements
+  - Grouped summaries with per-tag totals and exportable measurement reports
 
-  - Store and edit unit prices per pipe size (unit price per meter) in the project settings.
-  - Associate takeoff measurements with pipe sizes and group costs under tags and sizes.
-  - View aggregated total cost for each pipe size and per-tag subtotals based on measured lengths.
-  - Download a CSV report listing each pipe size, unit price (per meter), measured length, and total cost calculated from the takeoff.
+- **Fixtures Calculator**
 
-- Invoice generator & manager
+  - Count and categorize fixtures from mechanical drawings
+  - Highlight and mark fixtures by category (e.g., flow drains FD-1, FD-2, etc.)
+  - Essential for accurate bidding and project estimation
+  - Streamlined fixture counting workflow
 
-  - Build invoices from takeoff summaries or manual line items.
-  - Render invoices as downloadable PDFs.
-  - Basic invoice listing and management UI.
+- **Price Management System**
+
+  - Store and manage unit prices for different pipe sizes and materials
+  - Set prices per meter for various pipe diameters (e.g., 100mm copper pipe)
+  - Associate takeoff measurements with specific pipe sizes
+  - Automated cost calculations based on measured lengths
+
+- **Cost Calculation & Export**
+  - View aggregated total costs for each pipe size and material
+  - Per-tag subtotals based on measured lengths
+  - Export comprehensive CSV reports with pipe sizes, unit prices, measured lengths, and calculated costs
+  - Professional cost summaries for bidding and project management
+
+### Invoice Management (Legacy Features)
+
+- **Invoice Generator & Manager**
+
+  - Build invoices from takeoff summaries or manual line items
+  - Render invoices as downloadable PDFs
+  - Basic invoice listing and management UI
 
 - CI/CD & deployment
   - Automated CI pipeline for linting, type-checking and tests (configured in `.github/workflows`).

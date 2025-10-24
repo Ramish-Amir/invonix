@@ -19,93 +19,93 @@ export default function RequestAccountInfo() {
     <div className="w-full max-w-4xl mx-auto p-6">
       <Card className="shadow-lg">
         <CardHeader className="text-center pb-8">
-          <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
-            <Building className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          <div className="mx-auto w-16 h-16 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center mb-4">
+            <Building className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold text-gray-900 dark:text-white">
+          <CardTitle className="text-3xl font-bold text-foreground">
             Request Account Access
           </CardTitle>
-          <CardDescription className="text-lg text-gray-600 dark:text-gray-300 mt-2">
-            Professional invoice management solution for your business
+          <CardDescription className="text-lg text-muted-foreground mt-2">
+            Professional construction estimation and takeoff solution
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-8">
           {/* Main Information */}
           <div className="text-center">
-            <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
-              To create an account for our invoice management platform, please
-              contact our support team. We'll help you get set up with the right
-              access level for your organization.
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              To create an account for our construction estimation platform,
+              please contact our support team. We'll help you get set up with
+              the right access level for your organization.
             </p>
           </div>
 
           {/* Contact Information */}
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Mail className="w-5 h-5 mr-2 text-blue-600" />
+          <Card className="bg-muted/50 rounded-lg p-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center">
+              <Mail className="w-5 h-5 mr-2 text-primary" />
               Contact Information
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center text-gray-700 dark:text-gray-300">
-                <Mail className="w-4 h-4 mr-3 text-gray-500" />
+              <div className="flex items-center text-muted-foreground">
+                <Mail className="w-4 h-4 mr-3 text-muted-foreground" />
                 <span className="font-medium">Email:</span>
-                <span className="ml-2 text-blue-600 dark:text-blue-400">
+                <span className="ml-2 text-primary">
                   support@yourcompany.com
                 </span>
               </div>
-              <div className="flex items-center text-gray-700 dark:text-gray-300">
-                <Phone className="w-4 h-4 mr-3 text-gray-500" />
+              <div className="flex items-center text-muted-foreground">
+                <Phone className="w-4 h-4 mr-3 text-muted-foreground" />
                 <span className="font-medium">Phone:</span>
                 <span className="ml-2">(555) 123-4567</span>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Features Overview */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Shield className="w-5 h-5 mr-2 text-green-600" />
-              What You'll Get Access To
+            <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center">
+              <Shield className="w-5 h-5 mr-2 text-primary" />
+              Estimation Features You'll Get Access To
             </h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Advanced invoice generation and management
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-muted-foreground">
+                    Interactive PDF takeoff calculator with measurement tools
                   </span>
                 </div>
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Professional PDF export capabilities
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-muted-foreground">
+                    Fixtures calculator for counting and categorizing fixtures
                   </span>
                 </div>
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Takeoff calculator for construction projects
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-muted-foreground">
+                    Color-coded tagging system for organizing measurements
                   </span>
                 </div>
               </div>
               <div className="space-y-3">
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Multi-user collaboration features
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-muted-foreground">
+                    Price management for pipe sizes and materials
                   </span>
                 </div>
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Secure cloud-based storage
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-muted-foreground">
+                    Automated cost calculations from measurements
                   </span>
                 </div>
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Customizable invoice templates
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-muted-foreground">
+                    Export measurement reports and cost summaries
                   </span>
                 </div>
               </div>
@@ -113,9 +113,9 @@ export default function RequestAccountInfo() {
           </div>
 
           {/* Process Information */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-blue-600" />
+          <Card className="bg-muted/50 rounded-lg p-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center">
+              <Clock className="w-5 h-5 mr-2 text-primary" />
               Account Setup Process
             </h3>
             <div className="space-y-3">
@@ -123,7 +123,7 @@ export default function RequestAccountInfo() {
                 <Badge variant="outline" className="mr-3">
                   1
                 </Badge>
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-muted-foreground">
                   Contact our support team with your business information
                 </span>
               </div>
@@ -131,7 +131,7 @@ export default function RequestAccountInfo() {
                 <Badge variant="outline" className="mr-3">
                   2
                 </Badge>
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-muted-foreground">
                   We'll verify your organization and set up your account
                 </span>
               </div>
@@ -139,12 +139,12 @@ export default function RequestAccountInfo() {
                 <Badge variant="outline" className="mr-3">
                   3
                 </Badge>
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-muted-foreground">
                   Receive login credentials and access instructions
                 </span>
               </div>
             </div>
-          </div>
+          </Card>
         </CardContent>
 
         <CardFooter className="flex flex-col sm:flex-row gap-4 justify-center">
