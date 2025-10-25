@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -59,8 +61,11 @@ export function SignUpForm() {
   });
 
   const onSubmit = (data: SignupFormData) => {
-    console.log("Form Data:", data);
-    // Handle form submission logic, such as API call
+    // Signup is currently disabled
+    alert(
+      "Account registration is currently disabled. Please contact support to create an account."
+    );
+    return;
   };
 
   return (
@@ -68,7 +73,8 @@ export function SignUpForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Register</CardTitle>
         <CardDescription>
-          Sign up to experience smarter, faster invoice management with Invonix.
+          Account registration is currently disabled. Please contact support to
+          create an account.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -83,7 +89,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled />
                     </FormControl>
                     <FormMessage className="break-words">
                       {form.formState.errors.firstName?.message}
@@ -100,7 +106,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled />
                     </FormControl>
                     <FormMessage>
                       {form.formState.errors.lastName?.message}
@@ -117,7 +123,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled />
                     </FormControl>
                     <FormMessage>
                       {form.formState.errors.email?.message}
@@ -162,8 +168,8 @@ export function SignUpForm() {
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" className="w-full">
-              Sign Up
+            <Button type="submit" className="w-full" disabled>
+              Sign Up (Disabled)
             </Button>
           </form>
         </Form>

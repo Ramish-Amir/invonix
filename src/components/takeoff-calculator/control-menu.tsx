@@ -1,11 +1,9 @@
-import { Redo, Undo, PinOff } from "lucide-react";
+import { PinOff } from "lucide-react";
 import { Slider } from "../ui/slider";
 
 type TakeoffControlMenuProps = {
   scale: number;
   setScale: (newValue: number) => void;
-  handleUndo: () => void;
-  handleRedo: () => void;
   pinnedCount: number;
   onClearAllPins: () => void;
   currentPage: number;
@@ -15,8 +13,6 @@ type TakeoffControlMenuProps = {
 export const TakeoffControlMenu = ({
   scale,
   setScale,
-  handleRedo,
-  handleUndo,
   pinnedCount,
   onClearAllPins,
   currentPage,
@@ -27,20 +23,7 @@ export const TakeoffControlMenu = ({
       {/* <div className="flex h-[46px] text-primary p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
         {currentPage}/{totalPages}
       </div> */}
-      <div
-        title="Undo last measurement"
-        onClick={handleUndo}
-        className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"
-      >
-        <Undo className="w-4 h-4 text-primary" strokeWidth={3} />
-      </div>
-      <div
-        title="Redo last undone measurement"
-        onClick={handleRedo}
-        className="flex h-[46px] p-3 items-center justify-center rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity"
-      >
-        <Redo className="w-4 h-4 text-primary" strokeWidth={3} />
-      </div>
+
       {/* <div className="flex flex-col h-[46px] items-center gap-2 px-4 pt-3 pb-1 rounded-lg shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
         <Slider
           min={1}

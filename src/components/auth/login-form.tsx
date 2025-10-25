@@ -124,8 +124,11 @@ export default function LoginForm() {
       <CardFooter>
         <p className="text-center mx-auto">
           Don't have an account?{" "}
-          <Link href="/auth/signup" className="text-blue-500 hover:underline">
-            Sign Up
+          <Link
+            href="/auth/request-account"
+            className="text-blue-500 hover:underline"
+          >
+            Create Account
           </Link>
         </p>
       </CardFooter>

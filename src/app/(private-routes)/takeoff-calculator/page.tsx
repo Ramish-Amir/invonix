@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, Save, Info, Undo, Redo } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
@@ -10,11 +11,32 @@ import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callib
 import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
 import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
 import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
+import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
+import {
+  DocumentManager,
+  DocumentInfoDialog,
+} from "@/components/takeoff-calculator/document-manager";
+import { Button } from "@/components/ui/button";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { useAuth } from "@/hooks/useAuth";
 import {
   DEFAULT_CALLIBRATION_VALUE,
   DrawingCalibrations,
   getDrawingCallibrations,
 } from "@/lib/drawingCallibrations";
+import {
+  MeasurementDocument,
+  Measurement,
+  Point,
+} from "@/lib/types/measurement";
+import {
+  createMeasurementDocument,
+  getMeasurementDocument,
+  getProjectMeasurementDocuments,
+} from "@/lib/services/measurementService";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -29,30 +51,17 @@ const options = {
 
 type PDFFile = string | File | null;
 
-interface Point {
-  x: number;
-  y: number;
-  page: number;
-}
-
-interface Measurement {
-  id: number;
-  points: [Point, Point];
-  pixelDistance: number;
-  page: number;
-  tag?: {
-    id: string;
-    name: string;
-    color: string;
-  };
-}
-
 const maxWidth = 800;
 
 export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [companyId, setCompanyId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>("");
 
-  const [file, setFile] = useState<PDFFile>("/sample.pdf");
+  const [file, setFile] = useState<PDFFile>(null);
   const [numPages, setNumPages] = useState<number>();
   // Per-page scale (zoom) and calibration factor
   const [pageScales, setPageScales] = useState<{ [page: number]: number }>({});
@@ -72,6 +81,11 @@ export default function PDFViewer() {
   const [history, setHistory] = useState<Measurement[][]>([]);
   const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
 
+  // Document management state
+  const [currentDocument, setCurrentDocument] =
+    useState<MeasurementDocument | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
 
@@ -80,6 +94,46 @@ export default function PDFViewer() {
     { id: "1", name: "65", color: "#ef4444" },
   ]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
+
+  // Get user's company ID and create project if needed
+  const initializeUserData = async () => {
+    if (!user) return;
+
+    try {
+      // Get user's company ID from their profile
+      const userDoc = await getDoc(doc(db, "adminUsers", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setCompanyId(userData.companyId || "");
+      }
+
+      // Check if projectId is provided in URL (for existing projects)
+      const urlProjectId = searchParams.get("projectId");
+      if (urlProjectId) {
+        setProjectId(urlProjectId);
+      }
+    } catch (error) {
+      console.error("Error getting user data:", error);
+    }
+  };
+
+  // Initialize user data on component mount
+  useEffect(() => {
+    initializeUserData();
+  }, [user]);
+
+  // Auto-save functionality (only if we have valid company and project IDs)
+  const { forceSave } = useAutoSave({
+    document: currentDocument,
+    measurements,
+    tags,
+    pageScales,
+    callibrationScale,
+    viewportDimensions,
+    onDocumentUpdate: setCurrentDocument,
+    companyId: companyId || "",
+    projectId: projectId || "",
+  });
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -103,9 +157,12 @@ export default function PDFViewer() {
     }
   }, [onResize]);
 
-  function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null;
-    setFile(nextFile);
+  const handleNewTakeoff = () => {
+    setUploadDialogOpen(true);
+  };
+
+  const handleFileSelect = (selectedFile: File) => {
+    setFile(selectedFile);
     setNumPages(undefined);
     setMeasurements([]);
     setPageScales({});
@@ -113,7 +170,111 @@ export default function PDFViewer() {
     setHistory([]);
     setRedoStack([]);
     setPinnedIds(new Set());
-  }
+    setCurrentDocument(null);
+  };
+
+  const handleNewMeasurement = async (fileName: string) => {
+    if (!user || !companyId) return;
+
+    try {
+      // Create project if it doesn't exist
+      let currentProjectId = projectId;
+      if (!currentProjectId) {
+        currentProjectId = "project-" + Date.now();
+        await setDoc(
+          doc(db, "companies", companyId, "projects", currentProjectId),
+          {
+            name: fileName.replace(/\.pdf$/i, ""),
+            description: `Project for ${fileName}`,
+            status: "active",
+            createdAt: new Date().toISOString(),
+            createdBy: user.uid,
+          }
+        );
+        setProjectId(currentProjectId);
+
+        // Update URL with the new project ID
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set("projectId", currentProjectId);
+        router.replace(newUrl.pathname + newUrl.search);
+      }
+
+      const documentId = await createMeasurementDocument(
+        companyId,
+        currentProjectId,
+        {
+          name: fileName.replace(/\.pdf$/i, ""),
+          fileName,
+          userId: user.uid,
+        }
+      );
+
+      const newDocument: MeasurementDocument = {
+        id: documentId,
+        name: fileName.replace(/\.pdf$/i, ""),
+        fileName,
+        measurements: [],
+        tags: [],
+        pageScales: {},
+        callibrationScale: {},
+        viewportDimensions: { width: 0, height: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: user.uid,
+      };
+
+      setCurrentDocument(newDocument);
+    } catch (error) {
+      console.error("Error creating new measurement document:", error);
+    }
+  };
+
+  const handleExistingProjectSelect = async (project: any) => {
+    // When user selects an existing project, update the URL with the project ID
+    setProjectId(project.id);
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("projectId", project.id);
+    router.replace(newUrl.pathname + newUrl.search);
+
+    // Reset the current document state
+    setCurrentDocument(null);
+    setMeasurements([]);
+    setTags([{ id: "1", name: "65", color: "#ef4444" }]);
+    setPageScales({});
+    setCallibrationScale({});
+    setViewportDimensions({ width: 0, height: 0 });
+    setHistory([]);
+    setRedoStack([]);
+    setPinnedIds(new Set());
+
+    // Load existing measurement documents from this project
+    try {
+      const docs = await getProjectMeasurementDocuments(companyId, project.id);
+      if (docs.length > 0) {
+        // Load the most recent document
+        const latestDoc = docs[0];
+        const fullDocument = await getMeasurementDocument(
+          companyId,
+          project.id,
+          latestDoc.id
+        );
+        if (fullDocument) {
+          setCurrentDocument(fullDocument);
+          setMeasurements(fullDocument.measurements || []);
+          setTags(
+            fullDocument.tags || [{ id: "1", name: "65", color: "#ef4444" }]
+          );
+          setPageScales(fullDocument.pageScales || {});
+          setCallibrationScale(fullDocument.callibrationScale || {});
+          setViewportDimensions(
+            fullDocument.viewportDimensions || { width: 0, height: 0 }
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error loading existing measurements:", error);
+    }
+  };
 
   function onDocumentLoadSuccess({ numPages: nextNumPages }: any) {
     setNumPages(nextNumPages);
@@ -161,6 +322,8 @@ export default function PDFViewer() {
       pixelDistance,
       tag: selectedTag || undefined,
       page: pageNum,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const updatedMeasurements = [...measurements, newMeasurement];
@@ -239,10 +402,10 @@ export default function PDFViewer() {
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || !file) return; // Only attach scroll listener when file is loaded
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
+  }, [handleScroll, file]);
 
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -278,7 +441,9 @@ export default function PDFViewer() {
   ) => {
     setMeasurements((prev) =>
       prev.map((m) =>
-        m.id === measurementId ? { ...m, tag: tag || undefined } : m
+        m.id === measurementId
+          ? { ...m, tag: tag || undefined, updatedAt: new Date() }
+          : m
       )
     );
   };
@@ -311,77 +476,160 @@ export default function PDFViewer() {
     setRedoStack([]);
   };
 
+  const handleDocumentUpdate = (updatedDocument: MeasurementDocument) => {
+    setCurrentDocument(updatedDocument);
+  };
+
+  // Show loading message while getting user data
+  if (!companyId && user) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Takeoff Calculator</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Loading your data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
 
-      <div className="flex justify-between items-center flex-wrap gap-4 my-4">
-        {/* Left: File Info */}
-        <div className="flex gap-2 items-center text-muted-foreground">
-          <FileText />
-          {typeof file === "string"
-            ? file.split("/").pop()
-            : file?.name ?? "No file selected"}
+      {/* Document Manager */}
+      {currentDocument && (
+        <div className="mt-6 mb-4">
+          <DocumentManager
+            document={currentDocument}
+            onDocumentUpdate={handleDocumentUpdate}
+            companyId={companyId}
+            projectId={projectId}
+          >
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={forceSave}
+                className="h-8"
+              >
+                <Save className="w-3 h-3 mr-1" />
+                Save
+              </Button>
+              <DocumentInfoDialog document={currentDocument}>
+                <Button size="sm" variant="outline" className="h-8">
+                  <Info className="w-3 h-3" />
+                </Button>
+              </DocumentInfoDialog>
+            </div>
+          </DocumentManager>
         </div>
+      )}
 
-        {/* Right: Upload */}
-        <div className="flex items-center gap-2">
-          <label className="flex h-9 items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload PDF
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={onFileChange}
-              className="hidden"
+      {file && (
+        <div className="flex justify-between items-center flex-wrap gap-4 my-4">
+          {/* Left: File Info */}
+          <div className="flex gap-2 items-center text-muted-foreground">
+            <FileText />
+            {file
+              ? typeof file === "string"
+                ? file.split("/").pop()
+                : file?.name
+              : "No project loaded"}
+          </div>
+
+          {/* Right: New Take-off */}
+          <div className="flex items-center gap-2">
+            <Button onClick={handleNewTakeoff} className="h-9">
+              <Upload className="w-4 h-4 mr-2" />
+              New Take-off
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* File Upload Dialog */}
+      <FileUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onFileSelect={handleFileSelect}
+        onProjectSelect={handleExistingProjectSelect}
+        onNewProject={handleNewMeasurement}
+        companyId={companyId}
+      />
+
+      {/* Tag Selector - Only show when file is loaded */}
+      {file && (
+        <div className="mb-4">
+          <TagSelector
+            tags={tags}
+            selectedTag={selectedTag}
+            onTagSelect={setSelectedTag}
+            onTagCreate={handleTagCreate}
+            onTagDelete={handleTagDelete}
+          />
+        </div>
+      )}
+
+      {/* ✅ Sticky toolbar for the current page - Only show when file is loaded */}
+      {file && (
+        <div className="sticky top-0 left-0 right-0 z-[1] flex items-center justify-between px-4 py-2 border border-border bg-muted/50 rounded-t-lg rounded-b-none">
+          <span className="text-xs text-muted-foreground">
+            Page {currentPage}
+          </span>
+          <div className="flex items-center gap-2">
+            {/* Undo/Redo Buttons */}
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0}
+              className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
+              title="Undo"
+            >
+              <Undo className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
+              title="Redo"
+            >
+              <Redo className="w-4 h-4" />
+            </button>
+
+            <div className="w-px h-4 bg-border mx-1"></div>
+
+            <span className="text-xs text-muted-foreground">Scale:</span>
+            <DrawingCallibrationScale
+              setCallibrationScale={(newCallibrationScale: string) =>
+                setCallibrationScale((prev) => ({
+                  ...prev,
+                  [currentPage]: newCallibrationScale,
+                }))
+              }
+              callibrationScale={callibrationScale[currentPage]}
             />
-          </label>
+            <span className="text-xs text-muted-foreground">Zoom:</span>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              value={pageScales[currentPage] ?? 1.25}
+              onChange={(e) =>
+                setPageScales((prev) => ({
+                  ...prev,
+                  [currentPage]: Number(e.target.value),
+                }))
+              }
+              className="w-16 px-2 py-1 border border-input rounded text-xs bg-background text-foreground"
+              aria-label={`Zoom for page ${currentPage}`}
+            />
+          </div>
         </div>
-      </div>
-
-      {/* Tag Selector */}
-      <div className="mb-4">
-        <TagSelector
-          tags={tags}
-          selectedTag={selectedTag}
-          onTagSelect={setSelectedTag}
-          onTagCreate={handleTagCreate}
-          onTagDelete={handleTagDelete}
-        />
-      </div>
-
-      {/* ✅ Sticky toolbar for the current page */}
-      <div className="sticky top-0 left-0 right-0 z-[1] flex items-center justify-between px-4 py-2 border bg-gray-50 rounded-t-lg rounded-b-none">
-        <span className="text-xs text-gray-500">Page {currentPage}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Scale:</span>
-          <DrawingCallibrationScale
-            setCallibrationScale={(newCallibrationScale: string) =>
-              setCallibrationScale((prev) => ({
-                ...prev,
-                [currentPage]: newCallibrationScale,
-              }))
-            }
-            callibrationScale={callibrationScale[currentPage]}
-          />
-          <span className="text-xs text-gray-500">Zoom:</span>
-          <input
-            type="number"
-            min={1}
-            max={10}
-            step={1}
-            value={pageScales[currentPage] ?? 1.25}
-            onChange={(e) =>
-              setPageScales((prev) => ({
-                ...prev,
-                [currentPage]: Number(e.target.value),
-              }))
-            }
-            className="w-16 px-2 py-1 border rounded text-xs"
-            aria-label={`Zoom for page ${currentPage}`}
-          />
-        </div>
-      </div>
+      )}
 
       {file && (
         <div className="relative max-w-[100%] max-h-[100vh] ">
@@ -390,8 +638,6 @@ export default function PDFViewer() {
             setScale={(newScale: number) =>
               setPageScales((prev) => ({ ...prev, [currentPage]: newScale }))
             }
-            handleRedo={handleRedo}
-            handleUndo={handleUndo}
             pinnedCount={pinnedIds.size}
             onClearAllPins={() => setPinnedIds(new Set())}
             currentPage={currentPage}
@@ -476,7 +722,7 @@ export default function PDFViewer() {
                             onTagChange={handleMeasurementTagChange}
                             onDeleteMeasurement={handleDeleteMeasurement}
                             tags={tags}
-                            pageWidth={pagesWidth[pageNumber] || 0} // Changes for each page after every zoom-level update
+                            pageWidth={pagesWidth[pageNumber] || 0}
                           />
                         </>
                       )}
@@ -489,16 +735,43 @@ export default function PDFViewer() {
         </div>
       )}
 
-      <div className="mt-6">
-        {measurements.length > 0 && (
-          <>
-            <MeasurementSummary
-              measurements={measurements}
-              tags={tags}
-              callibrationScale={callibrationScale}
-              viewportDimensions={viewportDimensions}
-            />
-            {/* <MeasurementList
+      {/* Empty State - Only show when no file is loaded */}
+      {!file && (
+        <div>
+          <Card className="rounded-lg mt-6">
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
+                <div className="w-20 h-20 mx-auto mb-6 bg-muted rounded-full flex items-center justify-center">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-3">
+                  No Take-off Project Loaded
+                </h3>
+                <p className="text-muted-foreground mb-6 leading-relaxed">
+                  Start a new take-off project by uploading a PDF drawing. You
+                  can create new measurements or continue with existing ones.
+                </p>
+                <Button onClick={handleNewTakeoff} size="lg" className="px-6">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Start New Take-off
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {file && (
+        <div className="mt-6">
+          {measurements.length > 0 && (
+            <>
+              <MeasurementSummary
+                measurements={measurements}
+                tags={tags}
+                callibrationScale={callibrationScale}
+                viewportDimensions={viewportDimensions}
+              />
+              {/* <MeasurementList
               measurements={measurements}
               // Pass per-measurement scaleFactor based on page
               scaleFactorGetter={(measurement) =>
@@ -508,9 +781,10 @@ export default function PDFViewer() {
               tags={tags}
               onMeasurementTagChange={handleMeasurementTagChange}
             /> */}
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
