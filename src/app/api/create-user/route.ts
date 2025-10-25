@@ -3,22 +3,48 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
+// Initialize Firebase Admin SDK only if credentials are available
+let auth: any = null;
+let db: any = null;
 
-const auth = getAuth();
-const db = getFirestore();
+if (!getApps().length) {
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (clientEmail && privateKey) {
+    try {
+      initializeApp({
+        credential: cert({
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, "\n"),
+        }),
+      });
+      auth = getAuth();
+      db = getFirestore();
+    } catch (error) {
+      console.error("Failed to initialize Firebase Admin SDK:", error);
+    }
+  } else {
+    console.warn(
+      "Firebase Admin SDK credentials not found. Admin functions will be disabled."
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Firebase Admin SDK is initialized
+    if (!auth || !db) {
+      return NextResponse.json(
+        {
+          error:
+            "Firebase Admin SDK not initialized. Please configure service account credentials.",
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const {
       firstName,
