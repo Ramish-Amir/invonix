@@ -69,7 +69,7 @@ export default function ProjectManagement({
         projectsSnapshot.docs.map(async (doc) => {
           const data = doc.data() as Omit<Project, "id">;
 
-          // Get measurement count for this project
+          // Get measurement documents for this project
           const measurementsSnapshot = await getDocs(
             collection(
               db,
@@ -79,6 +79,15 @@ export default function ProjectManagement({
               doc.id,
               "measurements"
             )
+          );
+
+          // Count total measurements across all documents
+          const totalMeasurements = measurementsSnapshot.docs.reduce(
+            (total, measurementDoc) => {
+              const data = measurementDoc.data();
+              return total + (data.measurements?.length || 0);
+            },
+            0
           );
 
           // Get fixture count for this project (for future implementation)
@@ -96,7 +105,7 @@ export default function ProjectManagement({
           return {
             id: doc.id,
             ...data,
-            measurementCount: measurementsSnapshot.size,
+            measurementCount: totalMeasurements,
             fixtureCount: fixturesSnapshot.size,
           };
         })
