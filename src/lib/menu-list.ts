@@ -1,32 +1,26 @@
-import {
-  SquarePen,
-  LayoutGrid,
-  LucideIcon,
-  FileText,
-  FileCog,
-} from "lucide-react";
+import { LayoutGrid, LucideIcon, FileText } from "lucide-react";
 
 /**
  * A complete example:
  * {
-      groupLabel: "Invoices",
+      groupLabel: "Projects",
       menus: [
         {
           href: "",
-          label: "All Invoices",
-          active: pathname.includes("/posts"),
+          label: "All Projects",
+          active: pathname.includes("/projects"),
           icon: FileText,
           submenus: [],
           submenus: [
             {
-              href: "/posts",
-              label: "All Posts",
-              active: pathname === "/posts",
+              href: "/projects",
+              label: "All Projects",
+              active: pathname === "/projects",
             },
             {
-              href: "/posts/new",
-              label: "New Post",
-              active: pathname === "/posts/new",
+              href: "/projects/new",
+              label: "New Project",
+              active: pathname === "/projects/new",
             },
           ],
         },
@@ -77,32 +71,6 @@ export function getMenuList(pathname: string): Group[] {
           label: "Dashboard",
           active: pathname === "/",
           icon: LayoutGrid,
-          submenus: [],
-        },
-      ],
-    },
-    {
-      groupLabel: "Invoices",
-      menus: [
-        {
-          href: "/invoices",
-          label: "All Invoices",
-          active: pathname === "/invoices/",
-          icon: FileText,
-          submenus: [],
-        },
-        {
-          href: "/create-invoice",
-          label: "New Invoice",
-          active: pathname === "/create-invoice/",
-          icon: SquarePen,
-          submenus: [],
-        },
-        {
-          href: "/invoice-settings",
-          label: "Invoice Settings",
-          active: pathname === "/invoice-settings/",
-          icon: FileCog,
           submenus: [],
         },
       ],
