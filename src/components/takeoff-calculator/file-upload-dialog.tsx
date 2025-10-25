@@ -29,85 +29,70 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MeasurementDocument } from "@/lib/types/measurement";
 import {
-  getUserMeasurementDocuments,
-  searchMeasurementDocuments,
+  getProjectMeasurementDocuments,
+  searchProjectMeasurementDocuments,
+  getCompanyProjects,
 } from "@/lib/services/measurementService";
 import { useAuth } from "@/hooks/useAuth";
+
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+  createdAt: Date;
+  createdBy: string;
+}
 
 interface FileUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFileSelect: (file: File) => void;
-  onMeasurementSelect: (document: MeasurementDocument) => void;
-  onNewMeasurement: (fileName: string) => void;
+  onProjectSelect: (project: Project) => void;
+  onNewProject: (fileName: string) => void;
+  companyId: string;
 }
 
 export function FileUploadDialog({
   open,
   onOpenChange,
   onFileSelect,
-  onMeasurementSelect,
-  onNewMeasurement,
+  onProjectSelect,
+  onNewProject,
+  companyId,
 }: FileUploadDialogProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [measurementChoice, setMeasurementChoice] = useState<
     "new" | "existing"
   >("new");
-  const [existingDocuments, setExistingDocuments] = useState<
-    MeasurementDocument[]
-  >([]);
-  const [selectedDocument, setSelectedDocument] =
-    useState<MeasurementDocument | null>(null);
+  const [existingProjects, setExistingProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const { user } = useAuth();
 
-  // Load existing documents when dialog opens
+  // Load existing projects when dialog opens
   useEffect(() => {
-    if (open && user) {
-      loadExistingDocuments();
+    if (open && user && companyId) {
+      loadExistingProjects();
     }
-  }, [open, user]);
+  }, [open, user, companyId]);
 
-  // Search documents when search term changes
-  useEffect(() => {
-    if (searchTerm && user) {
-      const timeoutId = setTimeout(() => {
-        searchDocuments(searchTerm);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else if (!searchTerm && user) {
-      loadExistingDocuments();
-    }
-  }, [searchTerm, user]);
-
-  const loadExistingDocuments = async () => {
-    if (!user) return;
+  const loadExistingProjects = async () => {
+    if (!user || !companyId) return;
 
     setLoading(true);
     try {
-      const docs = await getUserMeasurementDocuments(user.uid);
-      setExistingDocuments(docs);
+      const projects = await getCompanyProjects(companyId);
+      setExistingProjects(projects);
     } catch (error) {
-      console.error("Error loading existing documents:", error);
+      console.error("Error loading existing projects:", error);
+      // If there's a permission error or no projects exist, show empty list
+      setExistingProjects([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const searchDocuments = async (term: string) => {
-    if (!user) return;
-
-    setSearching(true);
-    try {
-      const docs = await searchMeasurementDocuments(user.uid, term);
-      setExistingDocuments(docs);
-    } catch (error) {
-      console.error("Error searching documents:", error);
-    } finally {
-      setSearching(false);
     }
   };
 
@@ -125,9 +110,9 @@ export function FileUploadDialog({
     if (!selectedFile) return;
 
     if (measurementChoice === "new") {
-      onNewMeasurement(selectedFile.name);
-    } else if (measurementChoice === "existing" && selectedDocument) {
-      onMeasurementSelect(selectedDocument);
+      onNewProject(selectedFile.name);
+    } else if (measurementChoice === "existing" && selectedProject) {
+      onProjectSelect(selectedProject);
     }
 
     onFileSelect(selectedFile);
@@ -136,14 +121,14 @@ export function FileUploadDialog({
     // Reset state
     setSelectedFile(null);
     setMeasurementChoice("new");
-    setSelectedDocument(null);
+    setSelectedProject(null);
     setSearchTerm("");
   };
 
   const canSubmit =
     selectedFile &&
     (measurementChoice === "new" ||
-      (measurementChoice === "existing" && selectedDocument));
+      (measurementChoice === "existing" && selectedProject));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -307,20 +292,20 @@ export function FileUploadDialog({
                     aria-expanded={searchOpen}
                     className="w-full justify-start min-w-0"
                   >
-                    {selectedDocument ? (
+                    {selectedProject ? (
                       <div className="flex items-center justify-between min-w-0 flex-1">
                         <div className="flex justify-start items-center gap-2 min-w-0 flex-1">
                           <FileText className="w-4 h-4 flex-shrink-0" />
                           <span
-                            title={selectedDocument.name}
+                            title={selectedProject.name}
                             className="truncate min-w-0 flex-1 text-left"
                           >
-                            {selectedDocument.name}
+                            {selectedProject.name}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge variant="outline" className="text-xs">
-                            {selectedDocument.measurements.length} measurements
+                            {selectedProject.status}
                           </Badge>
                           <Search className="h-4 w-4 opacity-50" />
                         </div>
@@ -328,7 +313,7 @@ export function FileUploadDialog({
                     ) : (
                       <div className="flex items-center gap-2 w-full">
                         <span className="flex-1 text-left">
-                          Select measurement document...
+                          Select existing project...
                         </span>
                         <Search className="h-4 w-4 flex-shrink-0 opacity-50" />
                       </div>
@@ -353,16 +338,16 @@ export function FileUploadDialog({
                             {loading ? "Loading..." : "Searching..."}
                           </span>
                         </div>
-                      ) : existingDocuments.length === 0 ? (
-                        <CommandEmpty>No documents found.</CommandEmpty>
+                      ) : existingProjects.length === 0 ? (
+                        <CommandEmpty>No projects found.</CommandEmpty>
                       ) : (
                         <CommandGroup>
-                          {existingDocuments.map((doc) => (
+                          {existingProjects.map((project) => (
                             <CommandItem
-                              key={doc.id}
-                              value={`${doc.id}-${doc.name}`}
+                              key={project.id}
+                              value={`${project.id}-${project.name}`}
                               onSelect={() => {
-                                setSelectedDocument(doc);
+                                setSelectedProject(project);
                                 setSearchOpen(false);
                               }}
                             >
@@ -370,18 +355,21 @@ export function FileUploadDialog({
                                 <FileText className="w-4 h-4 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium truncate">
-                                    {doc.name}
+                                    {project.name}
                                   </div>
                                   <div className="text-xs text-muted-foreground truncate">
-                                    {doc.fileName} • {doc.measurements.length}{" "}
-                                    measurements
+                                    {project.description || "No description"} •
+                                    Created{" "}
+                                    {new Date(
+                                      project.createdAt
+                                    ).toLocaleDateString()}
                                   </div>
                                 </div>
                                 <Badge
                                   variant="outline"
                                   className="text-xs flex-shrink-0"
                                 >
-                                  {new Date(doc.updatedAt).toLocaleDateString()}
+                                  {project.status}
                                 </Badge>
                               </div>
                             </CommandItem>

@@ -23,7 +23,9 @@ import {
   Tag,
 } from "../types/measurement";
 
-const COLLECTION_NAME = "measurementDocuments";
+// New database structure: companies/{companyId}/projects/{projectId}/measurements/{measurementId}
+const getProjectMeasurementsPath = (companyId: string, projectId: string) =>
+  `companies/${companyId}/projects/${projectId}/measurements`;
 
 // Convert Firestore timestamp to Date
 const convertTimestamp = (timestamp: any): Date => {
@@ -64,19 +66,26 @@ const convertFirestoreDoc = (doc: any): MeasurementDocument => {
 
 // Create a new measurement document
 export const createMeasurementDocument = async (
+  companyId: string,
+  projectId: string,
   data: CreateMeasurementDocumentData
 ): Promise<string> => {
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...data,
-      measurements: [],
-      tags: [],
-      pageScales: {},
-      callibrationScale: {},
-      viewportDimensions: { width: 0, height: 0 },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    const docRef = await addDoc(
+      collection(db, getProjectMeasurementsPath(companyId, projectId)),
+      {
+        ...data,
+        measurements: [],
+        tags: [],
+        pageScales: {},
+        callibrationScale: {},
+        viewportDimensions: { width: 0, height: 0 },
+        companyId,
+        projectId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }
+    );
     return docRef.id;
   } catch (error) {
     console.error("Error creating measurement document:", error);
@@ -86,10 +95,16 @@ export const createMeasurementDocument = async (
 
 // Get a measurement document by ID
 export const getMeasurementDocument = async (
-  id: string
+  companyId: string,
+  projectId: string,
+  measurementId: string
 ): Promise<MeasurementDocument | null> => {
   try {
-    const docRef = doc(db, COLLECTION_NAME, id);
+    const docRef = doc(
+      db,
+      getProjectMeasurementsPath(companyId, projectId),
+      measurementId
+    );
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -102,15 +117,15 @@ export const getMeasurementDocument = async (
   }
 };
 
-// Get all measurement documents for a user
-export const getUserMeasurementDocuments = async (
-  userId: string
+// Get all measurement documents for a project
+export const getProjectMeasurementDocuments = async (
+  companyId: string,
+  projectId: string
 ): Promise<MeasurementDocument[]> => {
   try {
     // First try with ordering
     let q = query(
-      collection(db, COLLECTION_NAME),
-      where("userId", "==", userId),
+      collection(db, getProjectMeasurementsPath(companyId, projectId)),
       orderBy("updatedAt", "desc")
     );
 
@@ -119,7 +134,9 @@ export const getUserMeasurementDocuments = async (
       querySnapshot = await getDocs(q);
     } catch (orderError) {
       // Fallback to query without ordering
-      q = query(collection(db, COLLECTION_NAME), where("userId", "==", userId));
+      q = query(
+        collection(db, getProjectMeasurementsPath(companyId, projectId))
+      );
       querySnapshot = await getDocs(q);
     }
 
@@ -130,22 +147,22 @@ export const getUserMeasurementDocuments = async (
 
     return docs;
   } catch (error) {
-    console.error("Error getting user measurement documents:", error);
+    console.error("Error getting project measurement documents:", error);
     throw error;
   }
 };
 
-// Search measurement documents by name
-export const searchMeasurementDocuments = async (
-  userId: string,
+// Search measurement documents by name within a project
+export const searchProjectMeasurementDocuments = async (
+  companyId: string,
+  projectId: string,
   searchTerm: string,
   limitCount: number = 10
 ): Promise<MeasurementDocument[]> => {
   try {
     // First try with ordering
     let q = query(
-      collection(db, COLLECTION_NAME),
-      where("userId", "==", userId),
+      collection(db, getProjectMeasurementsPath(companyId, projectId)),
       orderBy("name"),
       limit(limitCount)
     );
@@ -156,8 +173,7 @@ export const searchMeasurementDocuments = async (
     } catch (orderError) {
       // Fallback to query without ordering
       q = query(
-        collection(db, COLLECTION_NAME),
-        where("userId", "==", userId),
+        collection(db, getProjectMeasurementsPath(companyId, projectId)),
         limit(limitCount)
       );
       querySnapshot = await getDocs(q);
@@ -184,11 +200,17 @@ export const searchMeasurementDocuments = async (
 
 // Update a measurement document
 export const updateMeasurementDocument = async (
-  id: string,
+  companyId: string,
+  projectId: string,
+  measurementId: string,
   data: UpdateMeasurementDocumentData
 ): Promise<void> => {
   try {
-    const docRef = doc(db, COLLECTION_NAME, id);
+    const docRef = doc(
+      db,
+      getProjectMeasurementsPath(companyId, projectId),
+      measurementId
+    );
     await updateDoc(docRef, {
       ...data,
       updatedAt: serverTimestamp(),
@@ -200,9 +222,17 @@ export const updateMeasurementDocument = async (
 };
 
 // Delete a measurement document
-export const deleteMeasurementDocument = async (id: string): Promise<void> => {
+export const deleteMeasurementDocument = async (
+  companyId: string,
+  projectId: string,
+  measurementId: string
+): Promise<void> => {
   try {
-    const docRef = doc(db, COLLECTION_NAME, id);
+    const docRef = doc(
+      db,
+      getProjectMeasurementsPath(companyId, projectId),
+      measurementId
+    );
     await deleteDoc(docRef);
   } catch (error) {
     console.error("Error deleting measurement document:", error);
@@ -212,10 +242,16 @@ export const deleteMeasurementDocument = async (id: string): Promise<void> => {
 
 // Real-time listener for a measurement document
 export const subscribeToMeasurementDocument = (
-  id: string,
+  companyId: string,
+  projectId: string,
+  measurementId: string,
   callback: (doc: MeasurementDocument | null) => void
 ): (() => void) => {
-  const docRef = doc(db, COLLECTION_NAME, id);
+  const docRef = doc(
+    db,
+    getProjectMeasurementsPath(companyId, projectId),
+    measurementId
+  );
 
   return onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
@@ -226,14 +262,14 @@ export const subscribeToMeasurementDocument = (
   });
 };
 
-// Real-time listener for user's measurement documents
-export const subscribeToUserMeasurementDocuments = (
-  userId: string,
+// Real-time listener for project's measurement documents
+export const subscribeToProjectMeasurementDocuments = (
+  companyId: string,
+  projectId: string,
   callback: (docs: MeasurementDocument[]) => void
 ): (() => void) => {
   const q = query(
-    collection(db, COLLECTION_NAME),
-    where("userId", "==", userId),
+    collection(db, getProjectMeasurementsPath(companyId, projectId)),
     orderBy("updatedAt", "desc")
   );
 
@@ -241,6 +277,27 @@ export const subscribeToUserMeasurementDocuments = (
     const docs = querySnapshot.docs.map(convertFirestoreDoc);
     callback(docs);
   });
+};
+
+// Get all projects for a company
+export const getCompanyProjects = async (companyId: string) => {
+  try {
+    const projectsSnapshot = await getDocs(
+      collection(db, "companies", companyId, "projects")
+    );
+    const projects = projectsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data().name || "",
+      description: doc.data().description || "",
+      status: doc.data().status || "active",
+      createdBy: doc.data().createdBy || "",
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+    }));
+    return projects;
+  } catch (error) {
+    console.error("Error getting company projects:", error);
+    throw error;
+  }
 };
 
 // Helper function to update measurements with proper timestamps

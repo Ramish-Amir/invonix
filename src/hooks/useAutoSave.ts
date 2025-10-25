@@ -12,6 +12,8 @@ interface UseAutoSaveProps {
   callibrationScale: { [page: number]: string };
   viewportDimensions: { width: number; height: number };
   onDocumentUpdate: (document: MeasurementDocument) => void;
+  companyId: string;
+  projectId: string;
   debounceMs?: number;
 }
 
@@ -23,6 +25,8 @@ export function useAutoSave({
   callibrationScale,
   viewportDimensions,
   onDocumentUpdate,
+  companyId,
+  projectId,
   debounceMs = 2000,
 }: UseAutoSaveProps) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,7 +63,7 @@ export function useAutoSave({
   );
 
   const saveToDatabase = useCallback(async () => {
-    if (!document) return;
+    if (!document || !companyId || !projectId) return;
 
     try {
       // Only update timestamps for measurements that actually changed
@@ -68,7 +72,7 @@ export function useAutoSave({
         updatedAt: measurement.updatedAt || new Date(),
       }));
 
-      await updateMeasurementDocument(document.id, {
+      await updateMeasurementDocument(companyId, projectId, document.id, {
         measurements: measurementsWithTimestamps,
         tags,
         pageScales,
@@ -110,6 +114,8 @@ export function useAutoSave({
     viewportDimensions,
     onDocumentUpdate,
     createStableDataString,
+    companyId,
+    projectId,
   ]);
 
   const debouncedSave = useCallback(() => {
@@ -149,6 +155,8 @@ export function useAutoSave({
     debouncedSave,
     document,
     createStableDataString,
+    companyId,
+    projectId,
   ]);
 
   // Cleanup timeout on unmount

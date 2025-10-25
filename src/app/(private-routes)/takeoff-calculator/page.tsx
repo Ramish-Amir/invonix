@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { pdfjs, Document, Page } from "react-pdf";
 import { Upload, FileText, Save, Info, Undo, Redo } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -31,8 +32,11 @@ import {
 import {
   createMeasurementDocument,
   getMeasurementDocument,
+  getProjectMeasurementDocuments,
 } from "@/lib/services/measurementService";
-import { Card, CardContent } from "@/components/ui/card";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -52,6 +56,10 @@ const maxWidth = 800;
 export default function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [companyId, setCompanyId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>("");
 
   const [file, setFile] = useState<PDFFile>(null);
   const [numPages, setNumPages] = useState<number>();
@@ -87,7 +95,34 @@ export default function PDFViewer() {
   ]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
 
-  // Auto-save functionality
+  // Get user's company ID and create project if needed
+  const initializeUserData = async () => {
+    if (!user) return;
+
+    try {
+      // Get user's company ID from their profile
+      const userDoc = await getDoc(doc(db, "adminUsers", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setCompanyId(userData.companyId || "");
+      }
+
+      // Check if projectId is provided in URL (for existing projects)
+      const urlProjectId = searchParams.get("projectId");
+      if (urlProjectId) {
+        setProjectId(urlProjectId);
+      }
+    } catch (error) {
+      console.error("Error getting user data:", error);
+    }
+  };
+
+  // Initialize user data on component mount
+  useEffect(() => {
+    initializeUserData();
+  }, [user]);
+
+  // Auto-save functionality (only if we have valid company and project IDs)
   const { forceSave } = useAutoSave({
     document: currentDocument,
     measurements,
@@ -96,6 +131,8 @@ export default function PDFViewer() {
     callibrationScale,
     viewportDimensions,
     onDocumentUpdate: setCurrentDocument,
+    companyId: companyId || "",
+    projectId: projectId || "",
   });
 
   // Drag state
@@ -137,14 +174,40 @@ export default function PDFViewer() {
   };
 
   const handleNewMeasurement = async (fileName: string) => {
-    if (!user) return;
+    if (!user || !companyId) return;
 
     try {
-      const documentId = await createMeasurementDocument({
-        name: fileName.replace(/\.pdf$/i, ""),
-        fileName,
-        userId: user.uid,
-      });
+      // Create project if it doesn't exist
+      let currentProjectId = projectId;
+      if (!currentProjectId) {
+        currentProjectId = "project-" + Date.now();
+        await setDoc(
+          doc(db, "companies", companyId, "projects", currentProjectId),
+          {
+            name: fileName.replace(/\.pdf$/i, ""),
+            description: `Project for ${fileName}`,
+            status: "active",
+            createdAt: new Date().toISOString(),
+            createdBy: user.uid,
+          }
+        );
+        setProjectId(currentProjectId);
+
+        // Update URL with the new project ID
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set("projectId", currentProjectId);
+        router.replace(newUrl.pathname + newUrl.search);
+      }
+
+      const documentId = await createMeasurementDocument(
+        companyId,
+        currentProjectId,
+        {
+          name: fileName.replace(/\.pdf$/i, ""),
+          fileName,
+          userId: user.uid,
+        }
+      );
 
       const newDocument: MeasurementDocument = {
         id: documentId,
@@ -166,24 +229,50 @@ export default function PDFViewer() {
     }
   };
 
-  const handleExistingMeasurementSelect = async (
-    document: MeasurementDocument
-  ) => {
+  const handleExistingProjectSelect = async (project: any) => {
+    // When user selects an existing project, update the URL with the project ID
+    setProjectId(project.id);
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("projectId", project.id);
+    router.replace(newUrl.pathname + newUrl.search);
+
+    // Reset the current document state
+    setCurrentDocument(null);
+    setMeasurements([]);
+    setTags([{ id: "1", name: "65", color: "#ef4444" }]);
+    setPageScales({});
+    setCallibrationScale({});
+    setViewportDimensions({ width: 0, height: 0 });
+    setHistory([]);
+    setRedoStack([]);
+    setPinnedIds(new Set());
+
+    // Load existing measurement documents from this project
     try {
-      const fullDocument = await getMeasurementDocument(document.id);
-      if (fullDocument) {
-        setCurrentDocument(fullDocument);
-        setMeasurements(fullDocument.measurements);
-        setTags(fullDocument.tags);
-        setPageScales(fullDocument.pageScales);
-        setCallibrationScale(fullDocument.callibrationScale);
-        setViewportDimensions(fullDocument.viewportDimensions);
-        setHistory([]);
-        setRedoStack([]);
-        setPinnedIds(new Set());
+      const docs = await getProjectMeasurementDocuments(companyId, project.id);
+      if (docs.length > 0) {
+        // Load the most recent document
+        const latestDoc = docs[0];
+        const fullDocument = await getMeasurementDocument(
+          companyId,
+          project.id,
+          latestDoc.id
+        );
+        if (fullDocument) {
+          setCurrentDocument(fullDocument);
+          setMeasurements(fullDocument.measurements || []);
+          setTags(
+            fullDocument.tags || [{ id: "1", name: "65", color: "#ef4444" }]
+          );
+          setPageScales(fullDocument.pageScales || {});
+          setCallibrationScale(fullDocument.callibrationScale || {});
+          setViewportDimensions(
+            fullDocument.viewportDimensions || { width: 0, height: 0 }
+          );
+        }
       }
     } catch (error) {
-      console.error("Error loading existing measurement document:", error);
+      console.error("Error loading existing measurements:", error);
     }
   };
 
@@ -391,6 +480,22 @@ export default function PDFViewer() {
     setCurrentDocument(updatedDocument);
   };
 
+  // Show loading message while getting user data
+  if (!companyId && user) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Takeoff Calculator</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Loading your data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="">
       <h2 className="text-gray-500">Take-off Calculator</h2>
@@ -401,6 +506,8 @@ export default function PDFViewer() {
           <DocumentManager
             document={currentDocument}
             onDocumentUpdate={handleDocumentUpdate}
+            companyId={companyId}
+            projectId={projectId}
           >
             <div className="flex items-center gap-2">
               <Button
@@ -449,8 +556,9 @@ export default function PDFViewer() {
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         onFileSelect={handleFileSelect}
-        onMeasurementSelect={handleExistingMeasurementSelect}
-        onNewMeasurement={handleNewMeasurement}
+        onProjectSelect={handleExistingProjectSelect}
+        onNewProject={handleNewMeasurement}
+        companyId={companyId}
       />
 
       {/* Tag Selector - Only show when file is loaded */}

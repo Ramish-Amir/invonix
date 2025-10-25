@@ -20,12 +20,16 @@ import { updateMeasurementDocument } from "@/lib/services/measurementService";
 interface DocumentManagerProps {
   document: MeasurementDocument | null;
   onDocumentUpdate: (document: MeasurementDocument) => void;
+  companyId: string;
+  projectId: string;
   children?: React.ReactNode;
 }
 
 export function DocumentManager({
   document,
   onDocumentUpdate,
+  companyId,
+  projectId,
   children,
 }: DocumentManagerProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -49,7 +53,7 @@ export function DocumentManager({
 
     setIsSaving(true);
     try {
-      await updateMeasurementDocument(document.id, {
+      await updateMeasurementDocument(companyId, projectId, document.id, {
         name: editName.trim(),
       });
 
