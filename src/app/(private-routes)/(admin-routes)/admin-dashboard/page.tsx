@@ -79,7 +79,16 @@ export default function AdminDashboard() {
               "measurements"
             )
           );
-          totalMeasurements += measurementsSnapshot.size;
+
+          // Count total measurements across all documents in this project
+          const projectMeasurements = measurementsSnapshot.docs.reduce(
+            (total, measurementDoc) => {
+              const data = measurementDoc.data();
+              return total + (data.measurements?.length || 0);
+            },
+            0
+          );
+          totalMeasurements += projectMeasurements;
         }
       }
 

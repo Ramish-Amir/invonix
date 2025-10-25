@@ -107,6 +107,12 @@ export function FileUploadDialog({
               project.id
             );
 
+            // Count total measurements across all documents
+            const totalMeasurements = measurementDocs.reduce(
+              (total, doc) => total + (doc.measurements?.length || 0),
+              0
+            );
+
             // Get the most recent updatedAt from measurement documents
             let latestUpdatedAt = project.createdAt;
             if (measurementDocs.length > 0) {
@@ -118,7 +124,7 @@ export function FileUploadDialog({
 
             return {
               ...project,
-              measurementCount: measurementDocs.length,
+              measurementCount: totalMeasurements,
               updatedAt: latestUpdatedAt,
             };
           } catch (error) {
@@ -361,7 +367,8 @@ export function FileUploadDialog({
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge variant="outline" className="text-xs">
-                            {selectedProject?.measurementCount || 0}{" "} measurements
+                            {selectedProject?.measurementCount || 0}{" "}
+                            measurements
                           </Badge>
                           <Search className="h-4 w-4 opacity-50" />
                         </div>

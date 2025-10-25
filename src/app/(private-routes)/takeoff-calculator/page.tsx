@@ -177,27 +177,24 @@ export default function PDFViewer() {
     if (!user || !companyId) return;
 
     try {
-      // Create project if it doesn't exist
-      let currentProjectId = projectId;
-      if (!currentProjectId) {
-        currentProjectId = "project-" + Date.now();
-        await setDoc(
-          doc(db, "companies", companyId, "projects", currentProjectId),
-          {
-            name: fileName.replace(/\.pdf$/i, ""),
-            description: `Project for ${fileName}`,
-            status: "active",
-            createdAt: new Date().toISOString(),
-            createdBy: user.uid,
-          }
-        );
-        setProjectId(currentProjectId);
+      // Always create a new project for new measurements
+      const currentProjectId = "project-" + Date.now();
+      await setDoc(
+        doc(db, "companies", companyId, "projects", currentProjectId),
+        {
+          name: fileName.replace(/\.pdf$/i, ""),
+          description: `Project for ${fileName}`,
+          status: "active",
+          createdAt: new Date().toISOString(),
+          createdBy: user.uid,
+        }
+      );
+      setProjectId(currentProjectId);
 
-        // Update URL with the new project ID
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set("projectId", currentProjectId);
-        router.replace(newUrl.pathname + newUrl.search);
-      }
+      // Update URL with the new project ID
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set("projectId", currentProjectId);
+      router.replace(newUrl.pathname + newUrl.search);
 
       const documentId = await createMeasurementDocument(
         companyId,
