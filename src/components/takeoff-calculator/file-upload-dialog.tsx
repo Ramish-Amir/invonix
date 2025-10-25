@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, FileText, Search, Plus, Loader2 } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Search,
+  Plus,
+  Loader2,
+  Calendar,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +49,9 @@ interface Project {
   status: string;
   createdAt: Date;
   createdBy: string;
+  measurementCount?: number;
+  fixtureCount?: number;
+  updatedAt?: Date;
 }
 
 interface FileUploadDialogProps {
@@ -86,7 +96,53 @@ export function FileUploadDialog({
     setLoading(true);
     try {
       const projects = await getCompanyProjects(companyId);
-      setExistingProjects(projects);
+
+      // Enhance projects with measurement data and updatedAt
+      const enhancedProjects = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            // Get measurement documents for this project
+            const measurementDocs = await getProjectMeasurementDocuments(
+              companyId,
+              project.id
+            );
+
+            // Get the most recent updatedAt from measurement documents
+            let latestUpdatedAt = project.createdAt;
+            if (measurementDocs.length > 0) {
+              const latestDoc = measurementDocs.reduce((latest, doc) =>
+                doc.updatedAt > latest.updatedAt ? doc : latest
+              );
+              latestUpdatedAt = latestDoc.updatedAt;
+            }
+
+            return {
+              ...project,
+              measurementCount: measurementDocs.length,
+              updatedAt: latestUpdatedAt,
+            };
+          } catch (error) {
+            console.error(
+              `Error loading data for project ${project.id}:`,
+              error
+            );
+            return {
+              ...project,
+              measurementCount: 0,
+              updatedAt: project.createdAt,
+            };
+          }
+        })
+      );
+
+      // Sort by updatedAt descending (most recent first)
+      const sortedProjects = enhancedProjects.sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt).getTime() -
+          new Date(a.updatedAt || a.createdAt).getTime()
+      );
+
+      setExistingProjects(sortedProjects);
     } catch (error) {
       console.error("Error loading existing projects:", error);
       // If there's a permission error or no projects exist, show empty list
@@ -283,7 +339,7 @@ export function FileUploadDialog({
             }`}
           >
             <div className="space-y-2 min-w-0 pt-2">
-              <Label>Select Measurement Document</Label>
+              <Label>Select Project</Label>
               <Popover open={searchOpen} onOpenChange={setSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -305,7 +361,7 @@ export function FileUploadDialog({
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge variant="outline" className="text-xs">
-                            {selectedProject.status}
+                            {selectedProject?.measurementCount || 0}{" "} measurements
                           </Badge>
                           <Search className="h-4 w-4 opacity-50" />
                         </div>
@@ -341,7 +397,7 @@ export function FileUploadDialog({
                       ) : existingProjects.length === 0 ? (
                         <CommandEmpty>No projects found.</CommandEmpty>
                       ) : (
-                        <CommandGroup>
+                        <CommandGroup className="p-1 space-y-0.5 bg-muted/30 rounded-lg">
                           {existingProjects.map((project) => (
                             <CommandItem
                               key={project.id}
@@ -350,27 +406,39 @@ export function FileUploadDialog({
                                 setSelectedProject(project);
                                 setSearchOpen(false);
                               }}
+                              className="p-2 cursor-pointer hover:bg-accent/50 transition-all duration-200 rounded-lg hover:shadow-sm"
                             >
-                              <div className="flex items-center gap-2 w-full min-w-0">
-                                <FileText className="w-4 h-4 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium truncate">
-                                    {project.name}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground truncate">
-                                    {project.description || "No description"} •
-                                    Created{" "}
-                                    {new Date(
-                                      project.createdAt
-                                    ).toLocaleDateString()}
+                              <div className="flex items-center gap-3 w-full">
+                                <div className="flex-shrink-0">
+                                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
+                                    <FileText className="w-4 h-4 text-primary" />
                                   </div>
                                 </div>
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs flex-shrink-0"
-                                >
-                                  {project.status}
-                                </Badge>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="font-medium text-sm text-foreground truncate">
+                                      {project.name}
+                                    </h4>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <div className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
+                                        {project.measurementCount || 0}{" "}
+                                        measurements
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>
+                                      Updated{" "}
+                                      {new Date(
+                                        project.updatedAt || project.createdAt
+                                      ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             </CommandItem>
                           ))}
