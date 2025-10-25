@@ -315,67 +315,37 @@ export default function ProfilePage() {
   return (
     <div className="space-y-8">
       {/* Header Section */}
-      <div className="flex items-center gap-4">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Avatar className="h-16 w-16 border-2 border-border cursor-pointer">
-                <AvatarImage src="" alt="Profile" />
-                <AvatarFallback className="text-lg font-semibold bg-primary text-primary-foreground">
-                  {getUserInitials()}
-                </AvatarFallback>
-              </Avatar>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Profile Picture</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+      <div className="flex items-center gap-6">
+        <Avatar className="h-16 w-16">
+          <AvatarImage src="" alt="Profile" />
+          <AvatarFallback className="text-lg font-semibold bg-primary text-primary-foreground">
+            {getUserInitials()}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex-1">
+          <h1 className="text-2xl font-semibold">
             {userProfile.firstName} {userProfile.lastName}
           </h1>
           <p className="text-muted-foreground">{userProfile.email}</p>
-          <div className="flex items-center gap-4 mt-2">
-            {userProfile.companyName && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1">
-                      <Building className="h-3 w-3 text-muted-foreground" />
-                      <Badge variant="outline" className="text-xs">
-                        {userProfile.companyName}
-                      </Badge>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Company</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span>
-                      Member since{" "}
-                      {new Date(userProfile.createdAt).toLocaleDateString(
-                        "en-US",
-                        {
-                          year: "numeric",
-                          month: "long",
-                        }
-                      )}
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Account creation date</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+        </div>
+
+        <div className="text-right text-sm text-muted-foreground">
+          {userProfile.companyName && (
+            <div className="flex items-center gap-1 mb-1">
+              <Building className="h-3 w-3" />
+              <span>{userProfile.companyName}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            <span>
+              Member since{" "}
+              {new Date(userProfile.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+              })}
+            </span>
           </div>
         </div>
       </div>
