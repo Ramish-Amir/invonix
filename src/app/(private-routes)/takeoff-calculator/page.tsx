@@ -402,10 +402,10 @@ export default function PDFViewer() {
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || !file) return; // Only attach scroll listener when file is loaded
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
+  }, [handleScroll, file]);
 
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -631,114 +631,108 @@ export default function PDFViewer() {
         </div>
       )}
 
-      {/* Hidden container for scroll functionality - always present */}
-      <div
-        className="max-w-[100%] max-h-[100vh] overflow-auto"
-        ref={containerRef}
-        style={{ display: file ? "block" : "none" }}
-      >
-        {/* PDF Document - only render when file exists */}
-        {file && (
-          <Document
-            file={file}
-            onLoadSuccess={onDocumentLoadSuccess}
-            options={options}
-          >
-            {Array.from(new Array(numPages), (_, index) => {
-              const pageNumber = index + 1;
-              const isVisible = Math.abs(pageNumber - currentPage) <= 1;
-              const scale = pageScales[pageNumber] ?? 1.25;
-              const scaleFactor =
-                getDrawingCallibrations(
-                  callibrationScale[pageNumber]?.toString(),
-                  viewportDimensions
-                ) ?? DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
-
-              return (
-                <div
-                  key={`page_container_${pageNumber}`}
-                  className="relative overflow-x-auto mb-6"
-                >
-                  <div
-                    key={`pdf_page_${pageNumber}`}
-                    className="relative border border-t-0 shadow-sm"
-                    data-page-number={pageNumber}
-                    onMouseDown={(e) => handleMouseDown(e, pageNumber)}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                  >
-                    {isVisible && (
-                      <>
-                        <Page
-                          pageNumber={pageNumber}
-                          scale={scale}
-                          width={
-                            containerWidth
-                              ? Math.min(containerWidth, maxWidth)
-                              : maxWidth
-                          }
-                          renderAnnotationLayer={false}
-                          renderTextLayer={false}
-                          onRenderSuccess={(page) => {
-                            page.cleanup();
-                            setPagesWidth((prev) => ({
-                              ...prev,
-                              [pageNumber]: Math.max(page.width, page.height),
-                            }));
-                            const viewport = page.getViewport({ scale: 1 });
-                            setViewportDimensions({
-                              width: Number((viewport.width / 72).toFixed(0)),
-                              height: Number((viewport.height / 72).toFixed(0)),
-                            });
-                          }}
-                        />
-                        <MeasurementOverlay
-                          pageNumber={pageNumber}
-                          measurements={measurements}
-                          scale={scale}
-                          scaleFactor={scaleFactor}
-                          hoveredId={hoveredId}
-                          pinnedIds={pinnedIds}
-                          isDragging={isDragging}
-                          dragStart={dragStart}
-                          dragEnd={dragEnd}
-                          dragPage={dragPage}
-                          setHoveredId={setHoveredId}
-                          onTogglePin={handleTogglePin}
-                          onTagChange={handleMeasurementTagChange}
-                          onDeleteMeasurement={handleDeleteMeasurement}
-                          tags={tags}
-                          pageWidth={pagesWidth[pageNumber] || 0}
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </Document>
-        )}
-      </div>
-
-      {/* Control Menu and Viewport Display - Only show when file is loaded */}
       {file && (
-        <>
-          <div className="relative max-w-[100%] max-h-[100vh]">
-            <TakeoffControlMenu
-              scale={pageScales[currentPage] ?? 1.25}
-              setScale={(newScale: number) =>
-                setPageScales((prev) => ({ ...prev, [currentPage]: newScale }))
-              }
-              pinnedCount={pinnedIds.size}
-              onClearAllPins={() => setPinnedIds(new Set())}
-              currentPage={currentPage}
-              totalPages={numPages || 0}
-            />
-            <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
-              <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
-            </div>
+        <div className="relative max-w-[100%] max-h-[100vh] ">
+          <TakeoffControlMenu
+            scale={pageScales[currentPage] ?? 1.25}
+            setScale={(newScale: number) =>
+              setPageScales((prev) => ({ ...prev, [currentPage]: newScale }))
+            }
+            pinnedCount={pinnedIds.size}
+            onClearAllPins={() => setPinnedIds(new Set())}
+            currentPage={currentPage}
+            totalPages={numPages || 0}
+          />
+          <div className="absolute bottom-8 left-6 z-[1] gap-2 flex px-2 py-1 items-center justify-center rounded-md shadow backdrop-blur supports-[backdrop-filter]:bg-primary/40 opacity-90 hover:opacity-100 transition-opacity">
+            <span className="text-primary text-xs">{`${viewportDimensions.width}" x ${viewportDimensions.height}"`}</span>
           </div>
-        </>
+          <div
+            className="max-w-[100%] max-h-[100vh] overflow-auto"
+            ref={containerRef}
+          >
+            {/* PDF Document */}
+            <Document
+              file={file}
+              onLoadSuccess={onDocumentLoadSuccess}
+              options={options}
+            >
+              {Array.from(new Array(numPages), (_, index) => {
+                const pageNumber = index + 1;
+                const isVisible = Math.abs(pageNumber - currentPage) <= 1;
+                const scale = pageScales[pageNumber] ?? 1.25;
+                const scaleFactor =
+                  getDrawingCallibrations(
+                    callibrationScale[pageNumber]?.toString(),
+                    viewportDimensions
+                  ) ?? DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
+
+                return (
+                  <div
+                    key={`page_container_${pageNumber}`}
+                    className="relative overflow-x-auto mb-6"
+                  >
+                    <div
+                      key={`pdf_page_${pageNumber}`}
+                      className="relative border border-t-0 shadow-sm"
+                      data-page-number={pageNumber}
+                      onMouseDown={(e) => handleMouseDown(e, pageNumber)}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                    >
+                      {isVisible && (
+                        <>
+                          <Page
+                            pageNumber={pageNumber}
+                            scale={scale}
+                            width={
+                              containerWidth
+                                ? Math.min(containerWidth, maxWidth)
+                                : maxWidth
+                            }
+                            renderAnnotationLayer={false}
+                            renderTextLayer={false}
+                            onRenderSuccess={(page) => {
+                              page.cleanup();
+                              setPagesWidth((prev) => ({
+                                ...prev,
+                                [pageNumber]: Math.max(page.width, page.height),
+                              }));
+                              const viewport = page.getViewport({ scale: 1 });
+                              setViewportDimensions({
+                                width: Number((viewport.width / 72).toFixed(0)),
+                                height: Number(
+                                  (viewport.height / 72).toFixed(0)
+                                ),
+                              });
+                            }}
+                          />
+                          <MeasurementOverlay
+                            pageNumber={pageNumber}
+                            measurements={measurements}
+                            scale={scale}
+                            scaleFactor={scaleFactor}
+                            hoveredId={hoveredId}
+                            pinnedIds={pinnedIds}
+                            isDragging={isDragging}
+                            dragStart={dragStart}
+                            dragEnd={dragEnd}
+                            dragPage={dragPage}
+                            setHoveredId={setHoveredId}
+                            onTogglePin={handleTogglePin}
+                            onTagChange={handleMeasurementTagChange}
+                            onDeleteMeasurement={handleDeleteMeasurement}
+                            tags={tags}
+                            pageWidth={pagesWidth[pageNumber] || 0}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </Document>
+          </div>
+        </div>
       )}
 
       {/* Empty State - Only show when no file is loaded */}
