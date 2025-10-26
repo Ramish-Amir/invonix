@@ -116,7 +116,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground">
-            Manage your invoice management system
+            Manage your construction estimation system
           </p>
         </div>
         <div className="flex gap-2">
@@ -285,7 +285,7 @@ export default function AdminDashboard() {
             System Overview
           </CardTitle>
           <CardDescription>
-            Quick overview of your invoice management system
+            Quick overview of your construction estimation system
           </CardDescription>
         </CardHeader>
         <CardContent>

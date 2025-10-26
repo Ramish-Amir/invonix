@@ -1,12 +1,9 @@
 import { atom } from "jotai";
 
-const companyLocalstorageValue = atom(localStorage.getItem("companyId"));
+export interface CompanyInfo {
+  id: string;
+  name: string;
+}
 
-// Create the atom with persistence
-export const companyIdAtom = atom(
-  (get) => get(companyLocalstorageValue),
-  (get, set, newCompanyId: string) => {
-    set(companyLocalstorageValue, newCompanyId);
-    localStorage.setItem("companyId", newCompanyId);
-  }
-);
+// Atom to store the user's company information
+export const userCompanyAtom = atom<CompanyInfo | null>(null);

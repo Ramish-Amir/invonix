@@ -32,7 +32,6 @@ const permissionsList = [
     subPermissions: [
       "Payment Received",
       "Payment Received Write",
-      "Invoice Update",
       "Sales Order Update",
     ],
   },
