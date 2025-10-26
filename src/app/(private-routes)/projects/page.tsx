@@ -424,7 +424,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
                               <Link
-                                href={`/takeoff-calculator?project=${project.id}`}
+                                href={`/takeoff-calculator?projectId=${project.id}`}
                               >
                                 <Eye className="w-4 h-4 mr-2" />
                                 View Project

@@ -415,7 +415,7 @@ export default function DashboardPage() {
                         </Badge>
                         <Button variant="ghost" size="sm" asChild>
                           <Link
-                            href={`/takeoff-calculator?project=${project.id}`}
+                            href={`/takeoff-calculator?projectId=${project.id}`}
                           >
                             <Eye className="w-4 h-4" />
                           </Link>
