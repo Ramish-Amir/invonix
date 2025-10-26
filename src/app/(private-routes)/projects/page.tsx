@@ -276,37 +276,6 @@ export default function ProjectsPage({}: ProjectsPageProps) {
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentProjects = filteredProjects.slice(startIndex, endIndex);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Skeleton className="h-8 w-32 mb-2" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-
-        {/* Search Skeleton */}
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-10 w-64" />
-        </div>
-
-        {/* Table Skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-24 mb-2" />
-            <Skeleton className="h-4 w-48" />
-          </CardHeader>
-          <CardContent>
-            <ProjectsTableSkeleton />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -338,8 +307,13 @@ export default function ProjectsPage({}: ProjectsPageProps) {
             />
           </div>
           <div className="text-sm text-muted-foreground">
-            {filteredProjects.length} project
-            {filteredProjects.length !== 1 ? "s" : ""}
+            {isLoading ? (
+              <Skeleton className="h-4 w-16" />
+            ) : (
+              `${filteredProjects.length} project${
+                filteredProjects.length !== 1 ? "s" : ""
+              }`
+            )}
           </div>
         </div>
       </div>
@@ -356,7 +330,9 @@ export default function ProjectsPage({}: ProjectsPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {currentProjects.length === 0 ? (
+          {isLoading ? (
+            <ProjectsTableSkeleton />
+          ) : currentProjects.length === 0 ? (
             <div className="text-center py-8">
               <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium">

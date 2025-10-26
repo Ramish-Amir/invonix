@@ -37,6 +37,8 @@ import {
   where,
 } from "firebase/firestore";
 import PageSpinner from "@/components/general/page-spinner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
 interface Project {
   id: string;
@@ -222,10 +224,6 @@ export default function DashboardPage() {
     }
   };
 
-  if (isLoading) {
-    return <PageSpinner />;
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -235,6 +233,20 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">
             Welcome back! Here's what's happening with your projects.
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/takeoff-calculator">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload PDF
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/takeoff-calculator">
+              <Plus className="w-4 h-4 mr-2" />
+              New Project
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -248,10 +260,20 @@ export default function DashboardPage() {
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.totalProjects > 0 ? "Active projects" : "No projects yet"}
-            </p>
+            {isLoading ? (
+              <Skeleton className="h-8 w-8 mb-2" />
+            ) : (
+              <div className="text-2xl font-bold">{stats.totalProjects}</div>
+            )}
+            {isLoading ? (
+              <Skeleton className="h-3 w-24" />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {stats.totalProjects > 0
+                  ? "Active projects"
+                  : "No projects yet"}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -263,8 +285,20 @@ export default function DashboardPage() {
             <Ruler className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalMeasurements}</div>
-            <p className="text-xs text-muted-foreground">Across all projects</p>
+            {isLoading ? (
+              <Skeleton className="h-8 w-12 mb-2" />
+            ) : (
+              <div className="text-2xl font-bold">
+                {stats.totalMeasurements}
+              </div>
+            )}
+            {isLoading ? (
+              <Skeleton className="h-3 w-20" />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Across all projects
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -274,10 +308,18 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.thisWeekMeasurements}
-            </div>
-            <p className="text-xs text-muted-foreground">New measurements</p>
+            {isLoading ? (
+              <Skeleton className="h-8 w-6 mb-2" />
+            ) : (
+              <div className="text-2xl font-bold">
+                {stats.thisWeekMeasurements}
+              </div>
+            )}
+            {isLoading ? (
+              <Skeleton className="h-3 w-28" />
+            ) : (
+              <p className="text-xs text-muted-foreground">New measurements</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -297,7 +339,32 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {recentProjects.length === 0 ? (
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <Skeleton className="w-10 h-10 rounded-lg" />
+                        <div>
+                          <Skeleton className="h-4 w-32 mb-2" />
+                          <div className="flex items-center space-x-2">
+                            <Skeleton className="h-3 w-20" />
+                            <Skeleton className="h-3 w-1" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : recentProjects.length === 0 ? (
                 <div className="text-center py-8">
                   <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium">No projects yet</h3>
@@ -358,7 +425,7 @@ export default function DashboardPage() {
                   ))}
                   <div className="pt-4">
                     <Button variant="outline" className="w-full" asChild>
-                      <Link href="/takeoff-calculator">
+                      <Link href="/all-projects">
                         View All Projects
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Link>
@@ -411,15 +478,27 @@ export default function DashboardPage() {
           </Card>
 
           {/* Recent Activity */}
-          {recentActivity.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Activity className="w-5 h-5 mr-2" />
-                  Recent Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="w-5 h-5 mr-2" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="flex items-start space-x-3">
+                      <Skeleton className="w-2 h-2 rounded-full mt-2" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-full mb-1" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : recentActivity.length > 0 ? (
                 <div className="space-y-4">
                   {recentActivity.map((activity) => (
                     <div
@@ -438,9 +517,15 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    No recent activity
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
