@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAtomValue } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,15 +23,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,12 +95,20 @@ export default function ProjectsPage({}: ProjectsPageProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && userCompany) {
       loadProjects();
     }
   }, [user, userCompany]);
+
+  // Close dropdown when dialog opens
+  useEffect(() => {
+    if (deleteProjectId) {
+      setOpenDropdownId(null); // Close any open dropdown when dialog opens
+    }
+  }, [deleteProjectId]);
 
   useEffect(() => {
     // Filter projects based on search query
@@ -227,6 +233,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       });
 
       setDeleteProjectId(null);
+      // setOpenDropdownId(null); // Close any open dropdown
     } catch (error) {
       console.error("Error deleting project:", error);
       toast({
@@ -404,7 +411,12 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
+                        <DropdownMenu
+                          open={openDropdownId === project.id}
+                          onOpenChange={(open) => {
+                            setOpenDropdownId(open ? project.id : null);
+                          }}
+                        >
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
                               <MoreHorizontal className="w-4 h-4" />
@@ -420,7 +432,11 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => setDeleteProjectId(project.id)}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                setOpenDropdownId(null); // Close dropdown first
+                                setDeleteProjectId(project.id);
+                              }}
                               className="text-destructive"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
@@ -487,33 +503,45 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
+      <Dialog
         open={!!deleteProjectId}
-        onOpenChange={() => setDeleteProjectId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteProjectId(null);
+          }
+        }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
-            <AlertDialogDescription>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
               Are you sure you want to delete this project? This action cannot
               be undone. All measurements and data associated with this project
               will be permanently deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                deleteProjectId && handleDeleteProject(deleteProjectId)
-              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteProjectId(null)}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteProjectId) {
+                  handleDeleteProject(deleteProjectId);
+                }
+              }}
+              disabled={isDeleting}
             >
               {isDeleting ? "Deleting..." : "Delete Project"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
