@@ -233,7 +233,6 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       });
 
       setDeleteProjectId(null);
-      // setOpenDropdownId(null); // Close any open dropdown
     } catch (error) {
       console.error("Error deleting project:", error);
       toast({
