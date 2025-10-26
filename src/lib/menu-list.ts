@@ -1,4 +1,4 @@
-import { LayoutGrid, LucideIcon, FileText } from "lucide-react";
+import { LayoutGrid, LucideIcon, FileText, FolderOpen } from "lucide-react";
 
 /**
  * A complete example:
@@ -71,6 +71,18 @@ export function getMenuList(pathname: string): Group[] {
           label: "Dashboard",
           active: pathname === "/",
           icon: LayoutGrid,
+          submenus: [],
+        },
+      ],
+    },
+    {
+      groupLabel: "Projects",
+      menus: [
+        {
+          href: "/projects",
+          label: "All Projects",
+          active: pathname === "/projects/",
+          icon: FolderOpen,
           submenus: [],
         },
       ],
