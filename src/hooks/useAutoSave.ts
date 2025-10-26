@@ -101,7 +101,6 @@ export function useAutoSave({
         viewportDimensions,
       };
       lastSavedRef.current = createStableDataString(stableData);
-      console.log("✅ Auto-save completed successfully");
     } catch (error) {
       console.error("Error auto-saving document:", error);
     }
@@ -143,7 +142,6 @@ export function useAutoSave({
     const currentDataString = createStableDataString(currentData);
 
     if (currentDataString !== lastSavedRef.current) {
-      console.log("🔄 Data changed, triggering auto-save...");
       debouncedSave();
     }
   }, [

@@ -234,20 +234,6 @@ export default function DashboardPage() {
             Welcome back! Here's what's happening with your projects.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild>
-            <Link href="/takeoff-calculator">
-              <Upload className="w-4 h-4 mr-2" />
-              Upload PDF
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/takeoff-calculator">
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Link>
-          </Button>
-        </div>
       </div>
 
       {/* Key Metrics Cards */}
@@ -425,7 +411,7 @@ export default function DashboardPage() {
                   ))}
                   <div className="pt-4">
                     <Button variant="outline" className="w-full" asChild>
-                      <Link href="/all-projects">
+                      <Link href="/projects">
                         View All Projects
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Link>

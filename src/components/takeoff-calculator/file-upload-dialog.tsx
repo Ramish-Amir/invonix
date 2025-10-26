@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Upload,
   FileText,
@@ -82,6 +83,7 @@ export function FileUploadDialog({
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const { user } = useAuth();
+  const searchParams = useSearchParams();
 
   // Load existing projects when dialog opens
   useEffect(() => {
@@ -149,6 +151,18 @@ export function FileUploadDialog({
       );
 
       setExistingProjects(sortedProjects);
+
+      // Check if there's a projectId in URL params and select it if it exists
+      const urlProjectId = searchParams.get("projectId");
+      if (urlProjectId) {
+        const projectFromUrl = sortedProjects.find(
+          (project) => project.id === urlProjectId
+        );
+        if (projectFromUrl) {
+          setSelectedProject(projectFromUrl);
+          setMeasurementChoice("existing");
+        }
+      }
     } catch (error) {
       console.error("Error loading existing projects:", error);
       // If there's a permission error or no projects exist, show empty list
