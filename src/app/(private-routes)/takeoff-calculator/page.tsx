@@ -494,12 +494,21 @@ export default function PDFViewer() {
   }
 
   return (
-    <div className="">
-      <h2 className="text-gray-500">Take-off Calculator</h2>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Take-off Calculator</h1>
+          <p className="text-muted-foreground">
+            Upload PDF drawings and create precise measurements for your
+            projects.
+          </p>
+        </div>
+      </div>
 
       {/* Document Manager */}
       {currentDocument && (
-        <div className="mt-6 mb-4">
+        <div className="mb-4">
           <DocumentManager
             document={currentDocument}
             onDocumentUpdate={handleDocumentUpdate}
@@ -527,7 +536,7 @@ export default function PDFViewer() {
       )}
 
       {file && (
-        <div className="flex justify-between items-center flex-wrap gap-4 my-4">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           {/* Left: File Info */}
           <div className="flex gap-2 items-center text-muted-foreground">
             <FileText />
@@ -735,7 +744,7 @@ export default function PDFViewer() {
       {/* Empty State - Only show when no file is loaded */}
       {!file && (
         <div>
-          <Card className="rounded-lg mt-6">
+          <Card className="rounded-lg">
             <CardContent className="p-6">
               <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
                 <div className="w-20 h-20 mx-auto mb-6 bg-muted rounded-full flex items-center justify-center">
