@@ -56,6 +56,7 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   getDocs,
+  getDoc,
   deleteDoc,
   doc,
   query,
@@ -165,14 +166,11 @@ export default function ProjectsPage({}: ProjectsPageProps) {
         // Get creator name
         let createdByName = "Unknown User";
         try {
-          const creatorDoc = await getDocs(
-            query(
-              collection(db, "adminUsers"),
-              where("uid", "==", projectData.createdBy)
-            )
+          const creatorDoc = await getDoc(
+            doc(db, "companies", userCompany.id, "users", projectData.createdBy)
           );
-          if (!creatorDoc.empty) {
-            const creatorData = creatorDoc.docs[0].data();
+          if (creatorDoc.exists()) {
+            const creatorData = creatorDoc.data();
             createdByName = `${creatorData.firstName} ${creatorData.lastName}`;
           }
         } catch (error) {
