@@ -1,9 +1,12 @@
 name: Deploy to Firebase Hosting (prod)
 
+# Disabled automatic triggers - now only runs manually
+# Vercel handles automatic deployments
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # Manual trigger only
+  # push:
+  #   branches:
+  #     - main  # Disabled - commented out
 
 jobs:
   build_and_deploy:

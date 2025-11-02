@@ -1,7 +1,10 @@
 name: Deploy preview to Firebase Hosting
 
+# Disabled automatic triggers - now only runs manually
+# Vercel handles automatic deployments
 on:
-  pull_request:
+  workflow_dispatch:  # Manual trigger only
+  # pull_request:  # Disabled - commented out
 
 jobs:
   build_and_preview:
