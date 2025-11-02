@@ -10,8 +10,8 @@ const nextConfig = {
   //     },
   //   ];
   // },
-  output: "export",
-  trailingSlash: true,
+  // Removed output: "export" to enable API routes
+  // trailingSlash: true, // Optional: Remove if you don't need trailing slashes
 };
 
 export default nextConfig;
