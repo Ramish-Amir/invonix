@@ -219,16 +219,30 @@ export default function PDFViewer() {
     setCurrentDocument(null);
   };
 
-  const handleNewMeasurement = async (file: File, fileName: string) => {
+  const handleNewMeasurement = async (
+    projectName: string,
+    fileName: string,
+    file: File,
+    onProgress?: (
+      step:
+        | "creating-project"
+        | "uploading-file"
+        | "creating-document"
+        | "complete"
+        | "error",
+      progress: number
+    ) => void
+  ) => {
     if (!user || !companyId) return;
 
     try {
-      // Always create a new project for new measurements
+      // Step 1: Create project in Firestore
+      onProgress?.("creating-project", 20);
       const currentProjectId = "project-" + Date.now();
       await setDoc(
         doc(db, "companies", companyId, "projects", currentProjectId),
         {
-          name: fileName.replace(/\.pdf$/i, ""),
+          name: projectName,
           description: `Project for ${fileName}`,
           status: "active",
           createdAt: new Date().toISOString(),
@@ -237,12 +251,13 @@ export default function PDFViewer() {
       );
       setProjectId(currentProjectId);
 
-      // Update URL with the new project ID
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set("projectId", currentProjectId);
-      router.replace(newUrl.pathname + newUrl.search);
+      // Navigate to takeoff calculator with the new project
+      router.push(
+        `/takeoff-calculator?companyId=${companyId}&projectId=${currentProjectId}`
+      );
 
-      // Upload file to Cloudflare R2
+      // Step 2: Upload file to Cloudflare R2
+      onProgress?.("uploading-file", 50);
       const formData = new FormData();
       formData.append("file", file);
       formData.append("companyId", companyId);
@@ -259,7 +274,8 @@ export default function PDFViewer() {
 
       const { fileUrl } = await uploadResponse.json();
 
-      // Create measurement document with file URL
+      // Step 3: Create measurement document
+      onProgress?.("creating-document", 80);
       const documentId = await createMeasurementDocument(
         companyId,
         currentProjectId,
@@ -288,12 +304,17 @@ export default function PDFViewer() {
 
       setCurrentDocument(newDocument);
 
+      // Step 4: Complete
+      onProgress?.("complete", 100);
+
       // Set the file URL so the PDF viewer can load it
       // Use proxy endpoint to bypass CORS issues
       const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(fileUrl)}`;
       setFile(proxyUrl);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating new measurement document:", error);
+      onProgress?.("error", 0);
+      throw error; // Re-throw so dialog can handle it
     }
   };
 
@@ -615,37 +636,26 @@ export default function PDFViewer() {
         </div>
       )}
 
-      {file && (
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          {/* Left: File Info */}
-          <div className="flex gap-2 items-center text-muted-foreground">
-            <FileText />
-            {file
-              ? typeof file === "string"
-                ? file.split("/").pop()
-                : file?.name
-              : "No project loaded"}
-          </div>
-
-          {/* Right: New Take-off */}
-          <div className="flex items-center gap-2">
-            <Button onClick={handleNewTakeoff} className="h-9">
-              <Upload className="w-4 h-4 mr-2" />
-              New Take-off
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* File Upload Dialog */}
       <FileUploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         onFileSelect={handleFileSelect}
         onProjectSelect={handleExistingProjectSelect}
-        onNewProject={(fileName: string, file: File) =>
-          handleNewMeasurement(file, fileName)
-        }
+        onNewProject={(
+          projectName: string,
+          fileName: string,
+          file: File,
+          onProgress?: (
+            step:
+              | "creating-project"
+              | "uploading-file"
+              | "creating-document"
+              | "complete"
+              | "error",
+            progress: number
+          ) => void
+        ) => handleNewMeasurement(projectName, fileName, file, onProgress)}
         companyId={companyId}
       />
 

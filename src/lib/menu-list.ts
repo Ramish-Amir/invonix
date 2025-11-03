@@ -87,17 +87,5 @@ export function getMenuList(pathname: string): Group[] {
         },
       ],
     },
-    {
-      groupLabel: "Estimations",
-      menus: [
-        {
-          href: "/takeoff-calculator",
-          label: "Take-off Calculator",
-          active: pathname === "/takeoff-calculator/",
-          icon: FileText,
-          submenus: [],
-        },
-      ],
-    },
   ];
 }

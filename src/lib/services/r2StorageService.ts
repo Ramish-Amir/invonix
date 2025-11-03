@@ -45,12 +45,9 @@ export async function uploadFileToR2(
   try {
     const { client, bucketName } = getR2Client();
 
-    // Generate a unique key for the file
-    const fileExtension = fileName.split(".").pop();
-    const uniqueKey = `companies/${companyId}/projects/${projectId}/${Date.now()}-${fileName.replace(
-      /[^a-zA-Z0-9.-]/g,
-      "_"
-    )}`;
+    // Generate a simple key for the file: companies/{companyId}/{projectId}-{filename}.pdf
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const uniqueKey = `companies/${companyId}/${projectId}-${sanitizedFileName}`;
 
     // Upload to R2
     const command = new PutObjectCommand({

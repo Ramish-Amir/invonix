@@ -59,6 +59,7 @@ import {
   getDoc,
   deleteDoc,
   doc,
+  setDoc,
   query,
   orderBy,
   where,
@@ -67,6 +68,9 @@ import { useToast } from "@/hooks/use-toast";
 import PageSpinner from "@/components/general/page-spinner";
 import { ProjectsTableSkeleton } from "@/components/projects/projects-table-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { createMeasurementDocument } from "@/lib/services/measurementService";
 
 interface Project {
   id: string;
@@ -88,6 +92,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
   const userCompany = useAtomValue(userCompanyAtom);
   const router = useRouter();
   const { toast } = useToast();
+  const { user: authUser } = useAuth();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
@@ -97,6 +102,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user && userCompany) {
@@ -317,11 +323,9 @@ export default function ProjectsPage({}: ProjectsPageProps) {
             Manage and view all your construction projects
           </p>
         </div>
-        <Button asChild>
-          <Link href="/takeoff-calculator">
-            <Plus className="w-4 h-4 mr-2" />
-            New Project
-          </Link>
+        <Button onClick={() => setUploadDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Project
         </Button>
       </div>
 
@@ -349,6 +353,114 @@ export default function ProjectsPage({}: ProjectsPageProps) {
         </div>
       </div>
 
+      {/* File Upload Dialog */}
+      {userCompany && authUser && (
+        <FileUploadDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          onFileSelect={() => {}}
+          onProjectSelect={async (project) => {
+            // When project is selected from existing, navigate to takeoff calculator
+            setUploadDialogOpen(false);
+            router.push(
+              `/takeoff-calculator?companyId=${userCompany.id}&projectId=${project.id}`
+            );
+            // Reload projects after creating new one
+            loadProjects();
+          }}
+          onNewProject={async (
+            projectName: string,
+            fileName: string,
+            file: File,
+            onProgress?: (
+              step:
+                | "creating-project"
+                | "uploading-file"
+                | "creating-document"
+                | "complete"
+                | "error",
+              progress: number
+            ) => void
+          ) => {
+            if (!user || !userCompany || !authUser) return;
+
+            try {
+              // Step 1: Create project in Firestore
+              onProgress?.("creating-project", 20);
+              const currentProjectId = "project-" + Date.now();
+              await setDoc(
+                doc(
+                  db,
+                  "companies",
+                  userCompany.id,
+                  "projects",
+                  currentProjectId
+                ),
+                {
+                  name: projectName,
+                  description: `Project for ${fileName}`,
+                  status: "active",
+                  createdAt: new Date().toISOString(),
+                  createdBy: authUser.uid,
+                }
+              );
+
+              // Step 2: Upload file to Cloudflare R2
+              onProgress?.("uploading-file", 50);
+              const formData = new FormData();
+              formData.append("file", file);
+              formData.append("companyId", userCompany.id);
+              formData.append("projectId", currentProjectId);
+
+              const uploadResponse = await fetch("/api/upload-file", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!uploadResponse.ok) {
+                throw new Error("Failed to upload file to cloud storage");
+              }
+
+              const { fileUrl } = await uploadResponse.json();
+
+              // Step 3: Create measurement document
+              onProgress?.("creating-document", 80);
+              await createMeasurementDocument(
+                userCompany.id,
+                currentProjectId,
+                {
+                  name: fileName.replace(/\.pdf$/i, ""),
+                  fileName,
+                  fileUrl,
+                  userId: authUser.uid,
+                }
+              );
+
+              // Step 4: Complete
+              onProgress?.("complete", 100);
+
+              // Navigate to takeoff calculator with the new project
+              router.push(
+                `/takeoff-calculator?companyId=${userCompany.id}&projectId=${currentProjectId}`
+              );
+
+              // Reload projects after creating new one
+              loadProjects();
+            } catch (error: any) {
+              console.error("Error creating project:", error);
+              onProgress?.("error", 0);
+              toast({
+                title: "Error",
+                description: error?.message || "Failed to create project",
+                variant: "destructive",
+              });
+              throw error; // Re-throw so dialog can handle it
+            }
+          }}
+          companyId={userCompany.id}
+        />
+      )}
+
       {/* Projects Table */}
       <Card>
         <CardHeader>
@@ -375,11 +487,9 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                   : "Get started by creating your first project"}
               </p>
               {!searchQuery && (
-                <Button asChild>
-                  <Link href="/takeoff-calculator">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Project
-                  </Link>
+                <Button onClick={() => setUploadDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Project
                 </Button>
               )}
             </div>

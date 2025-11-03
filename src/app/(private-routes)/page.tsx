@@ -35,10 +35,16 @@ import {
   orderBy,
   limit,
   where,
+  setDoc,
+  doc,
 } from "firebase/firestore";
 import PageSpinner from "@/components/general/page-spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { createMeasurementDocument } from "@/lib/services/measurementService";
+import { useToast } from "@/hooks/use-toast";
 
 interface Project {
   id: string;
@@ -67,6 +73,10 @@ export default function DashboardPage() {
   const user = useAtomValue(authAtom);
   const userCompany = useAtomValue(userCompanyAtom);
   const router = useRouter();
+  const { user: authUser } = useAuth();
+  const { toast } = useToast();
+
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const [stats, setStats] = useState<DashboardStats>({
     totalProjects: 0,
@@ -434,34 +444,127 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" asChild>
-                <Link href="/takeoff-calculator">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload New PDF
-                </Link>
+              <Button
+                className="w-full justify-start"
+                onClick={() => setUploadDialogOpen(true)}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Create New Project
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 asChild
               >
-                <Link href="/takeoff-calculator">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Project
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                asChild
-              >
-                <Link href="/takeoff-calculator">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  View Analytics
+                <Link href="/projects">
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  View All Projects
                 </Link>
               </Button>
             </CardContent>
           </Card>
+
+          {/* File Upload Dialog */}
+          {userCompany && authUser && (
+            <FileUploadDialog
+              open={uploadDialogOpen}
+              onOpenChange={setUploadDialogOpen}
+              onFileSelect={() => {}}
+              onProjectSelect={async (project) => {
+                setUploadDialogOpen(false);
+                router.push(
+                  `/takeoff-calculator?companyId=${userCompany.id}&projectId=${project.id}`
+                );
+              }}
+              onNewProject={async (
+                projectName: string,
+                fileName: string,
+                file: File,
+                onProgress?: (
+                  step:
+                    | "creating-project"
+                    | "uploading-file"
+                    | "creating-document"
+                    | "complete"
+                    | "error",
+                  progress: number
+                ) => void
+              ) => {
+                if (!user || !userCompany || !authUser) return;
+
+                try {
+                  // Step 1: Create project in Firestore
+                  onProgress?.("creating-project", 20);
+                  const currentProjectId = "project-" + Date.now();
+                  await setDoc(
+                    doc(
+                      db,
+                      "companies",
+                      userCompany.id,
+                      "projects",
+                      currentProjectId
+                    ),
+                    {
+                      name: projectName,
+                      description: `Project for ${fileName}`,
+                      status: "active",
+                      createdAt: new Date().toISOString(),
+                      createdBy: authUser.uid,
+                    }
+                  );
+
+                  // Step 2: Upload file to Cloudflare R2
+                  onProgress?.("uploading-file", 50);
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  formData.append("companyId", userCompany.id);
+                  formData.append("projectId", currentProjectId);
+
+                  const uploadResponse = await fetch("/api/upload-file", {
+                    method: "POST",
+                    body: formData,
+                  });
+
+                  if (!uploadResponse.ok) {
+                    throw new Error("Failed to upload file to cloud storage");
+                  }
+
+                  const { fileUrl } = await uploadResponse.json();
+
+                  // Step 3: Create measurement document
+                  onProgress?.("creating-document", 80);
+                  await createMeasurementDocument(
+                    userCompany.id,
+                    currentProjectId,
+                    {
+                      name: fileName.replace(/\.pdf$/i, ""),
+                      fileName,
+                      fileUrl,
+                      userId: authUser.uid,
+                    }
+                  );
+
+                  // Step 4: Complete
+                  onProgress?.("complete", 100);
+
+                  // Navigate to takeoff calculator with the new project
+                  router.push(
+                    `/takeoff-calculator?companyId=${userCompany.id}&projectId=${currentProjectId}`
+                  );
+                } catch (error: any) {
+                  console.error("Error creating project:", error);
+                  onProgress?.("error", 0);
+                  toast({
+                    title: "Error",
+                    description: error?.message || "Failed to create project",
+                    variant: "destructive",
+                  });
+                  throw error; // Re-throw so dialog can handle it
+                }
+              }}
+              companyId={userCompany.id}
+            />
+          )}
 
           {/* Recent Activity */}
           <Card>
