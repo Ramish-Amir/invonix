@@ -216,6 +216,33 @@ export default function ProjectsPage({}: ProjectsPageProps) {
     try {
       setIsDeleting(true);
 
+      // Get all measurement documents for this project to find file URLs
+      const { getProjectMeasurementDocuments } = await import(
+        "@/lib/services/measurementService"
+      );
+      const measurementDocs = await getProjectMeasurementDocuments(
+        userCompany.id,
+        projectId
+      );
+
+      // Delete all associated files from R2
+      const deletePromises = measurementDocs
+        .filter((doc) => doc.fileUrl)
+        .map((doc) =>
+          fetch("/api/delete-file", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ fileUrl: doc.fileUrl }),
+          }).catch((error) => {
+            console.error(`Failed to delete file ${doc.fileUrl}:`, error);
+            // Continue even if file deletion fails
+          })
+        );
+
+      await Promise.all(deletePromises);
+
       // Delete the project document
       await deleteDoc(
         doc(db, "companies", userCompany.id, "projects", projectId)

@@ -58,9 +58,9 @@ interface Project {
 interface FileUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File | string) => void;
   onProjectSelect: (project: Project) => void;
-  onNewProject: (fileName: string) => void;
+  onNewProject: (fileName: string, file: File) => void;
   companyId: string;
 }
 
@@ -186,12 +186,14 @@ export function FileUploadDialog({
     if (!selectedFile) return;
 
     if (measurementChoice === "new") {
-      onNewProject(selectedFile.name);
+      onNewProject(selectedFile.name, selectedFile);
     } else if (measurementChoice === "existing" && selectedProject) {
       onProjectSelect(selectedProject);
+    } else {
+      // If new measurement with file, still pass the file for immediate display
+      onFileSelect(selectedFile);
     }
 
-    onFileSelect(selectedFile);
     onOpenChange(false);
 
     // Reset state

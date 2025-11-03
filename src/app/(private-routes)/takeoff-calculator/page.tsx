@@ -122,6 +122,52 @@ export default function PDFViewer() {
     initializeUserData();
   }, [user]);
 
+  // Load project when projectId is in URL
+  useEffect(() => {
+    const loadProjectFromUrl = async () => {
+      if (!companyId || !projectId || !user) return;
+
+      try {
+        // Load existing measurement documents from this project
+        const docs = await getProjectMeasurementDocuments(companyId, projectId);
+        if (docs.length > 0) {
+          // Load the most recent document
+          const latestDoc = docs[0];
+          const fullDocument = await getMeasurementDocument(
+            companyId,
+            projectId,
+            latestDoc.id
+          );
+          if (fullDocument) {
+            setCurrentDocument(fullDocument);
+            setMeasurements(fullDocument.measurements || []);
+            setTags(
+              fullDocument.tags || [{ id: "1", name: "65", color: "#ef4444" }]
+            );
+            setPageScales(fullDocument.pageScales || {});
+            setCallibrationScale(fullDocument.callibrationScale || {});
+            setViewportDimensions(
+              fullDocument.viewportDimensions || { width: 0, height: 0 }
+            );
+
+            // Load PDF from cloud URL if available
+            if (fullDocument.fileUrl) {
+              // Use proxy endpoint to bypass CORS issues
+              const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+                fullDocument.fileUrl
+              )}`;
+              setFile(proxyUrl);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading project from URL:", error);
+      }
+    };
+
+    loadProjectFromUrl();
+  }, [companyId, projectId, user]);
+
   // Auto-save functionality (only if we have valid company and project IDs)
   const { forceSave } = useAutoSave({
     document: currentDocument,
@@ -161,7 +207,7 @@ export default function PDFViewer() {
     setUploadDialogOpen(true);
   };
 
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = (selectedFile: File | string) => {
     setFile(selectedFile);
     setNumPages(undefined);
     setMeasurements([]);
@@ -173,7 +219,7 @@ export default function PDFViewer() {
     setCurrentDocument(null);
   };
 
-  const handleNewMeasurement = async (fileName: string) => {
+  const handleNewMeasurement = async (file: File, fileName: string) => {
     if (!user || !companyId) return;
 
     try {
@@ -196,12 +242,31 @@ export default function PDFViewer() {
       newUrl.searchParams.set("projectId", currentProjectId);
       router.replace(newUrl.pathname + newUrl.search);
 
+      // Upload file to Cloudflare R2
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("companyId", companyId);
+      formData.append("projectId", currentProjectId);
+
+      const uploadResponse = await fetch("/api/upload-file", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file to cloud storage");
+      }
+
+      const { fileUrl } = await uploadResponse.json();
+
+      // Create measurement document with file URL
       const documentId = await createMeasurementDocument(
         companyId,
         currentProjectId,
         {
           name: fileName.replace(/\.pdf$/i, ""),
           fileName,
+          fileUrl,
           userId: user.uid,
         }
       );
@@ -210,6 +275,7 @@ export default function PDFViewer() {
         id: documentId,
         name: fileName.replace(/\.pdf$/i, ""),
         fileName,
+        fileUrl,
         measurements: [],
         tags: [],
         pageScales: {},
@@ -221,6 +287,11 @@ export default function PDFViewer() {
       };
 
       setCurrentDocument(newDocument);
+
+      // Set the file URL so the PDF viewer can load it
+      // Use proxy endpoint to bypass CORS issues
+      const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(fileUrl)}`;
+      setFile(proxyUrl);
     } catch (error) {
       console.error("Error creating new measurement document:", error);
     }
@@ -266,6 +337,15 @@ export default function PDFViewer() {
           setViewportDimensions(
             fullDocument.viewportDimensions || { width: 0, height: 0 }
           );
+
+          // Load PDF from cloud URL if available
+          if (fullDocument.fileUrl) {
+            // Use proxy endpoint to bypass CORS issues
+            const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+              fullDocument.fileUrl
+            )}`;
+            setFile(proxyUrl);
+          }
         }
       }
     } catch (error) {
@@ -563,7 +643,9 @@ export default function PDFViewer() {
         onOpenChange={setUploadDialogOpen}
         onFileSelect={handleFileSelect}
         onProjectSelect={handleExistingProjectSelect}
-        onNewProject={handleNewMeasurement}
+        onNewProject={(fileName: string, file: File) =>
+          handleNewMeasurement(file, fileName)
+        }
         companyId={companyId}
       />
 
