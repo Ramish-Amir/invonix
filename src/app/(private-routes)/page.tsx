@@ -355,41 +355,6 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Storage Usage</CardTitle>
-            <HardDrive className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading || !storageInfo ? (
-              <>
-                <Skeleton className="h-8 w-20 mb-2" />
-                <Skeleton className="h-2 w-full mb-1" />
-                <Skeleton className="h-3 w-32" />
-              </>
-            ) : (
-              <>
-                <div className="text-2xl font-bold mb-2">
-                  {formatBytes(storageInfo.used)}
-                </div>
-                <Progress
-                  value={(storageInfo.used / storageInfo.limit) * 100}
-                  className="h-2 mb-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {formatBytes(storageInfo.used)} of{" "}
-                  {formatBytes(storageInfo.limit)} used
-                  {storageInfo.available < 100 * 1024 * 1024 && (
-                    <span className="text-red-600 dark:text-red-400 ml-1 font-medium">
-                      (Low storage)
-                    </span>
-                  )}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Content */}
@@ -505,34 +470,145 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions & Activity */}
+        {/* Storage Usage & Activity */}
         <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Play className="w-5 h-5 mr-2" />
-                Quick Actions
-              </CardTitle>
+          {/* Storage Usage */}
+          <Card className="border-primary/20 bg-gradient-to-br from-background to-muted/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <HardDrive className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold">
+                      Storage Usage
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-0.5">
+                      Company storage overview
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button
-                className="w-full justify-start"
-                onClick={() => setUploadDialogOpen(true)}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Create New Project
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                asChild
-              >
-                <Link href="/projects">
-                  <FolderOpen className="w-4 h-4 mr-2" />
-                  View All Projects
-                </Link>
-              </Button>
+            <CardContent className="space-y-4">
+              {isLoading || !storageInfo ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ) : (
+                <>
+                  {/* Main Storage Display */}
+                  <div className="space-y-3">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold tracking-tight">
+                            {formatBytes(storageInfo.used)}
+                          </span>
+                          <span className="text-lg text-muted-foreground font-medium">
+                            / {formatBytes(storageInfo.limit)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Total storage used
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary">
+                          {(
+                            (storageInfo.used / storageInfo.limit) *
+                            100
+                          ).toFixed(1)}
+                          %
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          capacity
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                      <Progress
+                        value={(storageInfo.used / storageInfo.limit) * 100}
+                        className={`h-3 ${
+                          (storageInfo.used / storageInfo.limit) * 100 > 90
+                            ? "[&>div]:bg-red-500"
+                            : (storageInfo.used / storageInfo.limit) * 100 > 75
+                            ? "[&>div]:bg-yellow-500"
+                            : "[&>div]:bg-primary"
+                        }`}
+                      />
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          {formatBytes(storageInfo.available)} available
+                        </span>
+                        <span className="font-medium text-muted-foreground">
+                          {(
+                            ((storageInfo.limit - storageInfo.used) /
+                              storageInfo.limit) *
+                            100
+                          ).toFixed(1)}
+                          % remaining
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Storage Breakdown */}
+                  <div className="pt-3 border-t space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Storage Limit
+                      </span>
+                      <span className="font-semibold">
+                        {formatBytes(storageInfo.limit)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Used</span>
+                      <span className="font-semibold">
+                        {formatBytes(storageInfo.used)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Available</span>
+                      <span
+                        className={`font-semibold ${
+                          storageInfo.available < 100 * 1024 * 1024
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-green-600 dark:text-green-400"
+                        }`}
+                      >
+                        {formatBytes(storageInfo.available)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Warning Alert */}
+                  {storageInfo.available < 100 * 1024 * 1024 && (
+                    <div className="rounded-lg bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 dark:border-yellow-500/20 p-3 mt-3">
+                      <div className="flex items-start gap-2">
+                        <div className="p-1 rounded-full bg-yellow-500/20 shrink-0 mt-0.5">
+                          <HardDrive className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-1">
+                            Low Storage Warning
+                          </p>
+                          <p className="text-xs text-yellow-600/80 dark:text-yellow-400/80">
+                            Less than 100MB remaining. Consider upgrading your
+                            storage plan or removing unused files.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
 

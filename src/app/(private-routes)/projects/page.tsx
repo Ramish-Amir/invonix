@@ -49,6 +49,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  HardDrive,
 } from "lucide-react";
 import { authAtom } from "@/atoms/authAtom";
 import { userCompanyAtom } from "@/atoms/companyAtom";
@@ -82,6 +83,7 @@ interface Project {
   createdByName: string;
   measurementCount: number;
   status: "active" | "completed" | "draft";
+  totalFileSize?: number; // Total file size in bytes for all measurement documents
 }
 
 interface ProjectsPageProps {}
@@ -160,15 +162,20 @@ export default function ProjectsPage({}: ProjectsPageProps) {
           )
         );
 
-        // Count measurements
-        const measurementCount = measurementsSnapshot.docs.reduce(
-          (total, measurementDoc) => {
-            const data = measurementDoc.data();
-            const measurements = data.measurements || [];
-            return total + measurements.length;
-          },
-          0
-        );
+        // Count measurements and calculate total file size
+        let measurementCount = 0;
+        let totalFileSize = 0;
+
+        measurementsSnapshot.docs.forEach((measurementDoc) => {
+          const data = measurementDoc.data();
+          const measurements = data.measurements || [];
+          measurementCount += measurements.length;
+
+          // Add file size if available
+          if (data.fileSize && typeof data.fileSize === "number") {
+            totalFileSize += data.fileSize;
+          }
+        });
 
         // Get creator name
         let createdByName = "Unknown User";
@@ -193,6 +200,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
           createdByName,
           measurementCount,
           status: measurementCount > 0 ? "active" : "draft",
+          totalFileSize: totalFileSize > 0 ? totalFileSize : undefined,
         });
       }
 
@@ -552,6 +560,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                     <TableHead>Project Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Measurements</TableHead>
+                    <TableHead>Size</TableHead>
                     <TableHead>Created By</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Last Updated</TableHead>
@@ -574,6 +583,21 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                           <Ruler className="w-4 h-4 mr-1 text-muted-foreground" />
                           {project.measurementCount}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {project.totalFileSize !== undefined &&
+                        project.totalFileSize > 0 ? (
+                          <div className="flex items-center">
+                            <HardDrive className="w-4 h-4 mr-1 text-muted-foreground" />
+                            <span className="font-medium">
+                              {formatBytes(project.totalFileSize)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            No files
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
