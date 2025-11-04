@@ -37,6 +37,7 @@ import {
   where,
   setDoc,
   doc,
+  getDoc,
 } from "firebase/firestore";
 import PageSpinner from "@/components/general/page-spinner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,6 +46,13 @@ import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-di
 import { useAuth } from "@/hooks/useAuth";
 import { createMeasurementDocument } from "@/lib/services/measurementService";
 import { useToast } from "@/hooks/use-toast";
+import {
+  getCompanyStorage,
+  formatBytes,
+  DEFAULT_STORAGE_LIMIT,
+} from "@/lib/services/storageService";
+import { Progress } from "@/components/ui/progress";
+import { HardDrive } from "lucide-react";
 
 interface Project {
   id: string;
@@ -86,6 +94,11 @@ export default function DashboardPage() {
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [storageInfo, setStorageInfo] = useState<{
+    used: number;
+    limit: number;
+    available: number;
+  } | null>(null);
 
   const getTimeAgo = (date: Date): string => {
     const now = new Date();
@@ -112,6 +125,30 @@ export default function DashboardPage() {
 
     try {
       setIsLoading(true);
+
+      // Load storage information
+      try {
+        const storage = await getCompanyStorage(userCompany.id);
+        setStorageInfo({
+          used: storage.storageUsed,
+          limit: storage.storageLimit,
+          available: storage.storageAvailable,
+        });
+      } catch (error) {
+        console.error("Error loading storage info:", error);
+        // Initialize with default if company doesn't have storage fields
+        const companyDoc = await getDoc(doc(db, "companies", userCompany.id));
+        if (companyDoc.exists()) {
+          const companyData = companyDoc.data();
+          const limit = companyData.storageLimit || DEFAULT_STORAGE_LIMIT;
+          const used = companyData.storageUsed || 0;
+          setStorageInfo({
+            used,
+            limit,
+            available: limit - used,
+          });
+        }
+      }
 
       // Load projects for the user's company
       const projectsSnapshot = await getDocs(
@@ -318,6 +355,41 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Storage Usage</CardTitle>
+            <HardDrive className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading || !storageInfo ? (
+              <>
+                <Skeleton className="h-8 w-20 mb-2" />
+                <Skeleton className="h-2 w-full mb-1" />
+                <Skeleton className="h-3 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold mb-2">
+                  {formatBytes(storageInfo.used)}
+                </div>
+                <Progress
+                  value={(storageInfo.used / storageInfo.limit) * 100}
+                  className="h-2 mb-2"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {formatBytes(storageInfo.used)} of{" "}
+                  {formatBytes(storageInfo.limit)} used
+                  {storageInfo.available < 100 * 1024 * 1024 && (
+                    <span className="text-red-600 dark:text-red-400 ml-1 font-medium">
+                      (Low storage)
+                    </span>
+                  )}
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content */}
@@ -513,7 +585,24 @@ export default function DashboardPage() {
                     }
                   );
 
-                  // Step 2: Upload file to Cloudflare R2
+                  // Step 2: Check storage availability before uploading
+                  onProgress?.("uploading-file", 40);
+                  const { checkStorageAvailability, increaseStorageUsage } =
+                    await import("@/lib/services/storageService");
+                  const storageCheck = await checkStorageAvailability(
+                    userCompany.id,
+                    file.size
+                  );
+
+                  if (!storageCheck.available) {
+                    throw new Error(
+                      `Storage limit exceeded. Available: ${formatBytes(
+                        storageCheck.availableBytes
+                      )}, Required: ${formatBytes(file.size)}`
+                    );
+                  }
+
+                  // Step 3: Upload file to Cloudflare R2
                   onProgress?.("uploading-file", 50);
                   const formData = new FormData();
                   formData.append("file", file);
@@ -526,12 +615,28 @@ export default function DashboardPage() {
                   });
 
                   if (!uploadResponse.ok) {
-                    throw new Error("Failed to upload file to cloud storage");
+                    let errorData: any = {};
+                    try {
+                      errorData = await uploadResponse.json();
+                    } catch (e) {
+                      // If response is not JSON, try to get text
+                      const text = await uploadResponse.text().catch(() => "");
+                      errorData = { error: text || "Unknown error" };
+                    }
+
+                    throw new Error(
+                      errorData.error ||
+                        errorData.message ||
+                        "Failed to upload file to cloud storage"
+                    );
                   }
 
-                  const { fileUrl } = await uploadResponse.json();
+                  const { fileUrl, fileSize } = await uploadResponse.json();
 
-                  // Step 3: Create measurement document
+                  // Step 4: Update storage usage after successful upload
+                  await increaseStorageUsage(userCompany.id, file.size);
+
+                  // Step 5: Create measurement document
                   onProgress?.("creating-document", 80);
                   await createMeasurementDocument(
                     userCompany.id,
@@ -540,11 +645,12 @@ export default function DashboardPage() {
                       name: fileName.replace(/\.pdf$/i, ""),
                       fileName,
                       fileUrl,
+                      fileSize,
                       userId: authUser.uid,
                     }
                   );
 
-                  // Step 4: Complete
+                  // Step 6: Complete
                   onProgress?.("complete", 100);
 
                   // Navigate to takeoff calculator with the new project

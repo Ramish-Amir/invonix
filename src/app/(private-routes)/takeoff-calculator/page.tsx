@@ -256,7 +256,21 @@ export default function PDFViewer() {
         `/takeoff-calculator?companyId=${companyId}&projectId=${currentProjectId}`
       );
 
-      // Step 2: Upload file to Cloudflare R2
+      // Step 2: Check storage availability before uploading
+      onProgress?.("uploading-file", 40);
+      const { checkStorageAvailability, increaseStorageUsage, formatBytes } =
+        await import("@/lib/services/storageService");
+      const storageCheck = await checkStorageAvailability(companyId, file.size);
+
+      if (!storageCheck.available) {
+        throw new Error(
+          `Storage limit exceeded. Available: ${formatBytes(
+            storageCheck.availableBytes
+          )}, Required: ${formatBytes(file.size)}`
+        );
+      }
+
+      // Step 3: Upload file to Cloudflare R2
       onProgress?.("uploading-file", 50);
       const formData = new FormData();
       formData.append("file", file);
@@ -269,12 +283,28 @@ export default function PDFViewer() {
       });
 
       if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file to cloud storage");
+        let errorData: any = {};
+        try {
+          errorData = await uploadResponse.json();
+        } catch (e) {
+          // If response is not JSON, try to get text
+          const text = await uploadResponse.text().catch(() => "");
+          errorData = { error: text || "Unknown error" };
+        }
+
+        throw new Error(
+          errorData.error ||
+            errorData.message ||
+            "Failed to upload file to cloud storage"
+        );
       }
 
-      const { fileUrl } = await uploadResponse.json();
+      const { fileUrl, fileSize } = await uploadResponse.json();
 
-      // Step 3: Create measurement document
+      // Step 4: Update storage usage after successful upload
+      await increaseStorageUsage(companyId, file.size);
+
+      // Step 5: Create measurement document
       onProgress?.("creating-document", 80);
       const documentId = await createMeasurementDocument(
         companyId,
@@ -283,6 +313,7 @@ export default function PDFViewer() {
           name: fileName.replace(/\.pdf$/i, ""),
           fileName,
           fileUrl,
+          fileSize,
           userId: user.uid,
         }
       );
@@ -292,6 +323,7 @@ export default function PDFViewer() {
         name: fileName.replace(/\.pdf$/i, ""),
         fileName,
         fileUrl,
+        fileSize,
         measurements: [],
         tags: [],
         pageScales: {},
@@ -304,7 +336,7 @@ export default function PDFViewer() {
 
       setCurrentDocument(newDocument);
 
-      // Step 4: Complete
+      // Step 6: Complete
       onProgress?.("complete", 100);
 
       // Set the file URL so the PDF viewer can load it

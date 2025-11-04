@@ -208,23 +208,39 @@ export default function ProjectManagement({
         projectId
       );
 
-      // Delete all associated files from R2
+      // Delete all associated files from R2 and track storage to decrease
+      let totalStorageToDecrease = 0;
       const deletePromises = measurementDocs
         .filter((doc) => doc.fileUrl)
-        .map((doc) =>
-          fetch("/api/delete-file", {
+        .map((doc) => {
+          // Track file size for storage update
+          if (doc.fileSize) {
+            totalStorageToDecrease += doc.fileSize;
+          }
+
+          return fetch("/api/delete-file", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ fileUrl: doc.fileUrl }),
+            body: JSON.stringify({
+              fileUrl: doc.fileUrl,
+            }),
           }).catch((error) => {
             console.error(`Failed to delete file ${doc.fileUrl}:`, error);
             // Continue even if file deletion fails
-          })
-        );
+          });
+        });
 
       await Promise.all(deletePromises);
+
+      // Decrease company storage usage after successful file deletions
+      if (totalStorageToDecrease > 0) {
+        const { decreaseStorageUsage } = await import(
+          "@/lib/services/storageService"
+        );
+        await decreaseStorageUsage(companyId, totalStorageToDecrease);
+      }
 
       // Delete the project document
       await deleteDoc(doc(db, "companies", companyId, "projects", projectId));

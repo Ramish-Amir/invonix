@@ -71,6 +71,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { createMeasurementDocument } from "@/lib/services/measurementService";
+import { formatBytes } from "@/lib/services/storageService";
 
 interface Project {
   id: string;
@@ -231,23 +232,39 @@ export default function ProjectsPage({}: ProjectsPageProps) {
         projectId
       );
 
-      // Delete all associated files from R2
+      // Delete all associated files from R2 and track storage to decrease
+      let totalStorageToDecrease = 0;
       const deletePromises = measurementDocs
         .filter((doc) => doc.fileUrl)
-        .map((doc) =>
-          fetch("/api/delete-file", {
+        .map((doc) => {
+          // Track file size for storage update
+          if (doc.fileSize) {
+            totalStorageToDecrease += doc.fileSize;
+          }
+
+          return fetch("/api/delete-file", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ fileUrl: doc.fileUrl }),
+            body: JSON.stringify({
+              fileUrl: doc.fileUrl,
+            }),
           }).catch((error) => {
             console.error(`Failed to delete file ${doc.fileUrl}:`, error);
             // Continue even if file deletion fails
-          })
-        );
+          });
+        });
 
       await Promise.all(deletePromises);
+
+      // Decrease company storage usage after successful file deletions
+      if (totalStorageToDecrease > 0) {
+        const { decreaseStorageUsage } = await import(
+          "@/lib/services/storageService"
+        );
+        await decreaseStorageUsage(userCompany.id, totalStorageToDecrease);
+      }
 
       // Delete the project document
       await deleteDoc(
@@ -405,7 +422,24 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                 }
               );
 
-              // Step 2: Upload file to Cloudflare R2
+              // Step 2: Check storage availability before uploading
+              onProgress?.("uploading-file", 40);
+              const { checkStorageAvailability, increaseStorageUsage } =
+                await import("@/lib/services/storageService");
+              const storageCheck = await checkStorageAvailability(
+                userCompany.id,
+                file.size
+              );
+
+              if (!storageCheck.available) {
+                throw new Error(
+                  `Storage limit exceeded. Available: ${formatBytes(
+                    storageCheck.availableBytes
+                  )}, Required: ${formatBytes(file.size)}`
+                );
+              }
+
+              // Step 3: Upload file to Cloudflare R2
               onProgress?.("uploading-file", 50);
               const formData = new FormData();
               formData.append("file", file);
@@ -418,12 +452,28 @@ export default function ProjectsPage({}: ProjectsPageProps) {
               });
 
               if (!uploadResponse.ok) {
-                throw new Error("Failed to upload file to cloud storage");
+                let errorData: any = {};
+                try {
+                  errorData = await uploadResponse.json();
+                } catch (e) {
+                  // If response is not JSON, try to get text
+                  const text = await uploadResponse.text().catch(() => "");
+                  errorData = { error: text || "Unknown error" };
+                }
+
+                throw new Error(
+                  errorData.error ||
+                    errorData.message ||
+                    "Failed to upload file to cloud storage"
+                );
               }
 
-              const { fileUrl } = await uploadResponse.json();
+              const { fileUrl, fileSize } = await uploadResponse.json();
 
-              // Step 3: Create measurement document
+              // Step 4: Update storage usage after successful upload
+              await increaseStorageUsage(userCompany.id, file.size);
+
+              // Step 5: Create measurement document
               onProgress?.("creating-document", 80);
               await createMeasurementDocument(
                 userCompany.id,
@@ -432,11 +482,12 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                   name: fileName.replace(/\.pdf$/i, ""),
                   fileName,
                   fileUrl,
+                  fileSize,
                   userId: authUser.uid,
                 }
               );
 
-              // Step 4: Complete
+              // Step 6: Complete
               onProgress?.("complete", 100);
 
               // Navigate to takeoff calculator with the new project

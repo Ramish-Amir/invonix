@@ -48,6 +48,7 @@ const convertFirestoreDoc = (doc: any): MeasurementDocument => {
     name: data.name,
     fileName: data.fileName,
     fileUrl: data.fileUrl,
+    fileSize: data.fileSize,
     measurements:
       data.measurements?.map((m: any) => ({
         ...m,

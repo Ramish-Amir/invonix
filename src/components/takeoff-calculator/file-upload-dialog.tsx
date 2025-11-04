@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
+import { formatBytes } from "@/lib/services/storageService";
 
 interface Project {
   id: string;
@@ -116,9 +117,18 @@ export function FileUploadDialog({
     } catch (error: any) {
       console.error("Error creating project:", error);
       setUploadStep("error");
-      setErrorMessage(
-        error?.message || "Failed to create project. Please try again."
-      );
+
+      // Check if it's a storage limit error
+      if (
+        error?.message?.includes("Storage limit") ||
+        error?.message?.includes("Storage limit exceeded")
+      ) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          error?.message || "Failed to create project. Please try again."
+        );
+      }
       setUploadProgress(0);
     } finally {
       setIsUploading(false);
