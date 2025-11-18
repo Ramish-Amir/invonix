@@ -16,7 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
-import { formatBytes } from "@/lib/services/storageService";
+import {
+  formatBytes,
+  checkStorageAvailability,
+} from "@/lib/services/storageService";
 
 interface Project {
   id: string;
@@ -66,6 +69,7 @@ export function FileUploadDialog({
   const [uploadStep, setUploadStep] = useState<UploadStep>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCheckingStorage, setIsCheckingStorage] = useState(false);
   const { user } = useAuth();
 
   // Reset state when dialog opens/closes
@@ -77,19 +81,60 @@ export function FileUploadDialog({
       setUploadStep("idle");
       setUploadProgress(0);
       setErrorMessage(null);
+      setIsCheckingStorage(false);
     }
   }, [open]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
-    if (file && file.type === "application/pdf") {
+    if (!file) return;
+
+    // Clear previous errors
+    setErrorMessage(null);
+
+    // Check file type
+    if (file.type !== "application/pdf") {
+      setErrorMessage("Please select a PDF file.");
+      return;
+    }
+
+    // Check file size against available storage
+    setIsCheckingStorage(true);
+    try {
+      const storageCheck = await checkStorageAvailability(companyId, file.size);
+
+      if (!storageCheck.available) {
+        setErrorMessage(
+          `File size exceeds available storage limit. Available: ${formatBytes(
+            storageCheck.availableBytes
+          )}, Required: ${formatBytes(file.size)}`
+        );
+        setSelectedFile(null);
+        setProjectName("");
+        // Reset the file input
+        event.target.value = "";
+        return;
+      }
+
+      // File is valid, proceed
       setSelectedFile(file);
       // Set project name from file name (remove .pdf extension)
       const nameWithoutExt = file.name.replace(/\.pdf$/i, "");
       setProjectName(nameWithoutExt);
-    } else if (file) {
-      // Show error for non-PDF files
-      alert("Please select a PDF file.");
+    } catch (error: any) {
+      console.error("Error checking storage:", error);
+      setErrorMessage(
+        error?.message ||
+          "Failed to check storage availability. Please try again."
+      );
+      setSelectedFile(null);
+      setProjectName("");
+      // Reset the file input
+      event.target.value = "";
+    } finally {
+      setIsCheckingStorage(false);
     }
   };
 
@@ -152,7 +197,12 @@ export function FileUploadDialog({
     }
   };
 
-  const canSubmit = selectedFile && projectName.trim() && !isUploading;
+  const canSubmit =
+    selectedFile &&
+    projectName.trim() &&
+    !isUploading &&
+    !isCheckingStorage &&
+    !errorMessage;
 
   const handleDialogClose = (shouldClose: boolean) => {
     // Prevent closing during upload unless it's an error or complete
@@ -183,13 +233,13 @@ export function FileUploadDialog({
                 accept="application/pdf"
                 onChange={handleFileChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                disabled={isUploading}
+                disabled={isUploading || isCheckingStorage}
               />
               <Button
                 variant="outline"
                 className="w-full justify-start min-w-0 h-auto p-3"
                 asChild={false}
-                disabled={isUploading}
+                disabled={isUploading || isCheckingStorage}
               >
                 {selectedFile ? (
                   <div className="flex items-center justify-between min-w-0 flex-1">
@@ -211,12 +261,30 @@ export function FileUploadDialog({
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 w-full">
-                    <span className="flex-1 text-left">Choose PDF file...</span>
-                    <Upload className="h-4 w-4 flex-shrink-0 opacity-50" />
+                    {isCheckingStorage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <span className="flex-1 text-left">
+                          Checking storage availability...
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-left">
+                          Choose PDF file...
+                        </span>
+                        <Upload className="h-4 w-4 flex-shrink-0 opacity-50" />
+                      </>
+                    )}
                   </div>
                 )}
               </Button>
             </div>
+            {errorMessage && !isUploading && (
+              <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-3 rounded-md">
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+            )}
           </div>
 
           {/* Project Name Input */}
@@ -228,7 +296,7 @@ export function FileUploadDialog({
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Enter project name"
-                disabled={isUploading}
+                disabled={isUploading || isCheckingStorage}
               />
               <p className="text-xs text-muted-foreground">
                 The project name will be used to identify this take-off project.

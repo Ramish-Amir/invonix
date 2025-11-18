@@ -81,7 +81,7 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/projects",
           label: "All Projects",
-          active: pathname === "/projects/",
+          active: pathname === "/projects",
           icon: FolderOpen,
           submenus: [],
         },
