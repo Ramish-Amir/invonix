@@ -49,6 +49,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  HardDrive,
 } from "lucide-react";
 import { authAtom } from "@/atoms/authAtom";
 import { userCompanyAtom } from "@/atoms/companyAtom";
@@ -59,6 +60,7 @@ import {
   getDoc,
   deleteDoc,
   doc,
+  setDoc,
   query,
   orderBy,
   where,
@@ -67,6 +69,10 @@ import { useToast } from "@/hooks/use-toast";
 import PageSpinner from "@/components/general/page-spinner";
 import { ProjectsTableSkeleton } from "@/components/projects/projects-table-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { createMeasurementDocument } from "@/lib/services/measurementService";
+import { formatBytes } from "@/lib/services/storageService";
 
 interface Project {
   id: string;
@@ -77,6 +83,7 @@ interface Project {
   createdByName: string;
   measurementCount: number;
   status: "active" | "completed" | "draft";
+  totalFileSize?: number; // Total file size in bytes for all measurement documents
 }
 
 interface ProjectsPageProps {}
@@ -88,6 +95,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
   const userCompany = useAtomValue(userCompanyAtom);
   const router = useRouter();
   const { toast } = useToast();
+  const { user: authUser } = useAuth();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
@@ -97,6 +105,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user && userCompany) {
@@ -153,15 +162,20 @@ export default function ProjectsPage({}: ProjectsPageProps) {
           )
         );
 
-        // Count measurements
-        const measurementCount = measurementsSnapshot.docs.reduce(
-          (total, measurementDoc) => {
-            const data = measurementDoc.data();
-            const measurements = data.measurements || [];
-            return total + measurements.length;
-          },
-          0
-        );
+        // Count measurements and calculate total file size
+        let measurementCount = 0;
+        let totalFileSize = 0;
+
+        measurementsSnapshot.docs.forEach((measurementDoc) => {
+          const data = measurementDoc.data();
+          const measurements = data.measurements || [];
+          measurementCount += measurements.length;
+
+          // Add file size if available
+          if (data.fileSize && typeof data.fileSize === "number") {
+            totalFileSize += data.fileSize;
+          }
+        });
 
         // Get creator name
         let createdByName = "Unknown User";
@@ -186,6 +200,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
           createdByName,
           measurementCount,
           status: measurementCount > 0 ? "active" : "draft",
+          totalFileSize: totalFileSize > 0 ? totalFileSize : undefined,
         });
       }
 
@@ -216,10 +231,81 @@ export default function ProjectsPage({}: ProjectsPageProps) {
     try {
       setIsDeleting(true);
 
-      // Delete the project document
+      // Get all measurement documents for this project
+      const { getProjectMeasurementDocuments } = await import(
+        "@/lib/services/measurementService"
+      );
+      const measurementDocs = await getProjectMeasurementDocuments(
+        userCompany.id,
+        projectId
+      );
+
+      // Step 1: Delete all measurement documents from Firestore
+      const measurementDeletePromises = measurementDocs.map((measurementDoc) => {
+        return deleteDoc(
+          doc(
+            db,
+            "companies",
+            userCompany.id,
+            "projects",
+            projectId,
+            "measurements",
+            measurementDoc.id
+          )
+        ).catch((error) => {
+          console.error(
+            `Failed to delete measurement document ${measurementDoc.id}:`,
+            error
+          );
+          // Continue even if individual measurement deletion fails
+        });
+      });
+
+      await Promise.all(measurementDeletePromises);
+
+      // Step 2: Delete all associated files from R2 and track storage to decrease
+      let totalStorageToDecrease = 0;
+      const fileDeletePromises = measurementDocs
+        .filter((doc) => doc.fileUrl)
+        .map((doc) => {
+          // Track file size for storage update
+          if (doc.fileSize) {
+            totalStorageToDecrease += doc.fileSize;
+          }
+
+          return fetch("/api/delete-file", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              fileUrl: doc.fileUrl,
+            }),
+          }).catch((error) => {
+            console.error(`Failed to delete file ${doc.fileUrl}:`, error);
+            // Continue even if file deletion fails
+          });
+        });
+
+      await Promise.all(fileDeletePromises);
+
+      // Step 3: Delete the project document (do this before storage update to ensure it happens)
       await deleteDoc(
         doc(db, "companies", userCompany.id, "projects", projectId)
       );
+
+      // Step 4: Decrease company storage usage (don't let this block the deletion)
+      if (totalStorageToDecrease > 0) {
+        try {
+          const { decreaseStorageUsage } = await import(
+            "@/lib/services/storageService"
+          );
+          await decreaseStorageUsage(userCompany.id, totalStorageToDecrease);
+        } catch (storageError) {
+          console.error("Error decreasing storage usage:", storageError);
+          // Log but don't fail - project is already deleted
+        }
+      }
 
       // Update local state
       setProjects(projects.filter((p) => p.id !== projectId));
@@ -235,7 +321,10 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       console.error("Error deleting project:", error);
       toast({
         title: "Error",
-        description: "Failed to delete project",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete project",
         variant: "destructive",
       });
     } finally {
@@ -290,11 +379,9 @@ export default function ProjectsPage({}: ProjectsPageProps) {
             Manage and view all your construction projects
           </p>
         </div>
-        <Button asChild>
-          <Link href="/takeoff-calculator">
-            <Plus className="w-4 h-4 mr-2" />
-            New Project
-          </Link>
+        <Button onClick={() => setUploadDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Project
         </Button>
       </div>
 
@@ -322,6 +409,148 @@ export default function ProjectsPage({}: ProjectsPageProps) {
         </div>
       </div>
 
+      {/* File Upload Dialog */}
+      {userCompany && authUser && (
+        <FileUploadDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          onFileSelect={() => {}}
+          onProjectSelect={async (project) => {
+            // When project is selected from existing, navigate to takeoff calculator
+            setUploadDialogOpen(false);
+            router.push(
+              `/takeoff-calculator?companyId=${userCompany.id}&projectId=${project.id}`
+            );
+            // Reload projects after creating new one
+            loadProjects();
+          }}
+          onNewProject={async (
+            projectName: string,
+            fileName: string,
+            file: File,
+            onProgress?: (
+              step:
+                | "creating-project"
+                | "uploading-file"
+                | "creating-document"
+                | "complete"
+                | "error",
+              progress: number
+            ) => void
+          ) => {
+            if (!user || !userCompany || !authUser) return;
+
+            try {
+              // Step 1: Create project in Firestore
+              onProgress?.("creating-project", 20);
+              const currentProjectId = "project-" + Date.now();
+              await setDoc(
+                doc(
+                  db,
+                  "companies",
+                  userCompany.id,
+                  "projects",
+                  currentProjectId
+                ),
+                {
+                  name: projectName,
+                  description: `Project for ${fileName}`,
+                  status: "active",
+                  createdAt: new Date().toISOString(),
+                  createdBy: authUser.uid,
+                }
+              );
+
+              // Step 2: Check storage availability before uploading
+              onProgress?.("uploading-file", 40);
+              const { checkStorageAvailability, increaseStorageUsage } =
+                await import("@/lib/services/storageService");
+              const storageCheck = await checkStorageAvailability(
+                userCompany.id,
+                file.size
+              );
+
+              if (!storageCheck.available) {
+                throw new Error(
+                  `Storage limit exceeded. Available: ${formatBytes(
+                    storageCheck.availableBytes
+                  )}, Required: ${formatBytes(file.size)}`
+                );
+              }
+
+              // Step 3: Upload file to Cloudflare R2
+              onProgress?.("uploading-file", 50);
+              const formData = new FormData();
+              formData.append("file", file);
+              formData.append("companyId", userCompany.id);
+              formData.append("projectId", currentProjectId);
+
+              const uploadResponse = await fetch("/api/upload-file", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!uploadResponse.ok) {
+                let errorData: any = {};
+                try {
+                  errorData = await uploadResponse.json();
+                } catch (e) {
+                  // If response is not JSON, try to get text
+                  const text = await uploadResponse.text().catch(() => "");
+                  errorData = { error: text || "Unknown error" };
+                }
+
+                throw new Error(
+                  errorData.error ||
+                    errorData.message ||
+                    "Failed to upload file to cloud storage"
+                );
+              }
+
+              const { fileUrl, fileSize } = await uploadResponse.json();
+
+              // Step 4: Update storage usage after successful upload
+              await increaseStorageUsage(userCompany.id, file.size);
+
+              // Step 5: Create measurement document
+              onProgress?.("creating-document", 80);
+              await createMeasurementDocument(
+                userCompany.id,
+                currentProjectId,
+                {
+                  name: fileName.replace(/\.pdf$/i, ""),
+                  fileName,
+                  fileUrl,
+                  fileSize,
+                  userId: authUser.uid,
+                }
+              );
+
+              // Step 6: Complete
+              onProgress?.("complete", 100);
+
+              // Navigate to takeoff calculator with the new project
+              router.push(
+                `/takeoff-calculator?companyId=${userCompany.id}&projectId=${currentProjectId}`
+              );
+
+              // Reload projects after creating new one
+              loadProjects();
+            } catch (error: any) {
+              console.error("Error creating project:", error);
+              onProgress?.("error", 0);
+              toast({
+                title: "Error",
+                description: error?.message || "Failed to create project",
+                variant: "destructive",
+              });
+              throw error; // Re-throw so dialog can handle it
+            }
+          }}
+          companyId={userCompany.id}
+        />
+      )}
+
       {/* Projects Table */}
       <Card>
         <CardHeader>
@@ -348,11 +577,9 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                   : "Get started by creating your first project"}
               </p>
               {!searchQuery && (
-                <Button asChild>
-                  <Link href="/takeoff-calculator">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Project
-                  </Link>
+                <Button onClick={() => setUploadDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Project
                 </Button>
               )}
             </div>
@@ -364,6 +591,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                     <TableHead>Project Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Measurements</TableHead>
+                    <TableHead>Size</TableHead>
                     <TableHead>Created By</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Last Updated</TableHead>
@@ -386,6 +614,21 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                           <Ruler className="w-4 h-4 mr-1 text-muted-foreground" />
                           {project.measurementCount}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {project.totalFileSize !== undefined &&
+                        project.totalFileSize > 0 ? (
+                          <div className="flex items-center">
+                            <HardDrive className="w-4 h-4 mr-1 text-muted-foreground" />
+                            <span className="font-medium">
+                              {formatBytes(project.totalFileSize)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            No files
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">

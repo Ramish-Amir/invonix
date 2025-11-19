@@ -25,6 +25,7 @@ export interface MeasurementDocument {
   name: string;
   fileName: string;
   fileUrl?: string;
+  fileSize?: number; // File size in bytes
   measurements: Measurement[];
   tags: Tag[];
   pageScales: { [page: number]: number };
@@ -42,6 +43,7 @@ export interface CreateMeasurementDocumentData {
   name: string;
   fileName: string;
   fileUrl?: string;
+  fileSize?: number; // File size in bytes
   userId: string;
 }
 

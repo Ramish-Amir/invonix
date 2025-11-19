@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Building, Users, Plus, Edit, Trash2, FolderOpen } from "lucide-react";
+import { Building, Users, Plus, Edit, Trash2, FolderOpen, HardDrive } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -22,6 +22,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { formatBytes } from "@/lib/services/storageService";
 
 interface Company {
   id: string;
@@ -31,6 +32,8 @@ interface Company {
   email?: string;
   createdAt?: string;
   userCount?: number;
+  storageLimit?: number;
+  storageUsed?: number;
 }
 
 interface CompanyManagementProps {
@@ -88,12 +91,23 @@ export default function CompanyManagement({
 
   const handleAddCompany = async (companyData: Omit<Company, "id">) => {
     try {
+      const { DEFAULT_STORAGE_LIMIT } = await import(
+        "@/lib/services/storageService"
+      );
       const docRef = await addDoc(collection(db, "companies"), {
         ...companyData,
+        storageLimit: companyData.storageLimit || DEFAULT_STORAGE_LIMIT,
+        storageUsed: 0,
         createdAt: new Date().toISOString(),
       });
 
-      const newCompany = { id: docRef.id, ...companyData, userCount: 0 };
+      const newCompany = {
+        id: docRef.id,
+        ...companyData,
+        userCount: 0,
+        storageLimit: companyData.storageLimit || DEFAULT_STORAGE_LIMIT,
+        storageUsed: 0,
+      };
       setCompanies((prev) => [...prev, newCompany]);
       setShowAddForm(false);
 
@@ -118,6 +132,7 @@ export default function CompanyManagement({
         address: companyData.address,
         phone: companyData.phone,
         email: companyData.email,
+        storageLimit: companyData.storageLimit,
       });
 
       setCompanies((prev) =>
@@ -427,10 +442,38 @@ function EditCompanyForm({ company, onSave, onCancel }: EditCompanyFormProps) {
     address: company.address || "",
     phone: company.phone || "",
     email: company.email || "",
+    storageLimit: company.storageLimit || 0,
   });
+  const [storageLimitInput, setStorageLimitInput] = useState("");
+  const [storageLimitError, setStorageLimitError] = useState("");
+
+  useEffect(() => {
+    const loadStorageFormat = async () => {
+      const { formatBytes, DEFAULT_STORAGE_LIMIT } = await import(
+        "@/lib/services/storageService"
+      );
+      const limit = company.storageLimit || DEFAULT_STORAGE_LIMIT;
+      setStorageLimitInput(formatBytes(limit));
+      setFormData((prev) => ({ ...prev, storageLimit: limit }));
+    };
+    loadStorageFormat();
+  }, [company.storageLimit]);
+
+  const handleStorageLimitChange = async (value: string) => {
+    setStorageLimitInput(value);
+    setStorageLimitError("");
+    try {
+      const { parseBytes } = await import("@/lib/services/storageService");
+      const bytes = parseBytes(value);
+      setFormData((prev) => ({ ...prev, storageLimit: bytes }));
+    } catch (error: any) {
+      setStorageLimitError(error.message || "Invalid format");
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (storageLimitError) return;
     onSave({ ...company, ...formData });
   };
 
@@ -489,8 +532,35 @@ function EditCompanyForm({ company, onSave, onCancel }: EditCompanyFormProps) {
               />
             </div>
           </div>
+          <div>
+            <label className="text-sm font-medium flex items-center gap-2">
+              <HardDrive className="w-4 h-4" />
+              Storage Limit
+            </label>
+            <Input
+              placeholder="1GB"
+              value={storageLimitInput}
+              onChange={(e) => handleStorageLimitChange(e.target.value)}
+            />
+            {storageLimitError && (
+              <p className="text-xs text-red-500 mt-1">{storageLimitError}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Format: e.g., 1GB, 500MB, 2TB
+            </p>
+            {company.storageUsed !== undefined && company.storageLimit && (
+              <p className="text-xs text-muted-foreground">
+                Current usage: {formatBytes(company.storageUsed || 0)} of{" "}
+                {formatBytes(company.storageLimit || 0)}
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
-            <Button type="submit" className="flex-1">
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={!!storageLimitError}
+            >
               Update Company
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>

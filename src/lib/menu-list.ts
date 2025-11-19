@@ -81,20 +81,8 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/projects",
           label: "All Projects",
-          active: pathname === "/projects/",
+          active: pathname === "/projects",
           icon: FolderOpen,
-          submenus: [],
-        },
-      ],
-    },
-    {
-      groupLabel: "Estimations",
-      menus: [
-        {
-          href: "/takeoff-calculator",
-          label: "Take-off Calculator",
-          active: pathname === "/takeoff-calculator/",
-          icon: FileText,
           submenus: [],
         },
       ],

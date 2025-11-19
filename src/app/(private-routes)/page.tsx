@@ -35,10 +35,24 @@ import {
   orderBy,
   limit,
   where,
+  setDoc,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import PageSpinner from "@/components/general/page-spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { createMeasurementDocument } from "@/lib/services/measurementService";
+import { useToast } from "@/hooks/use-toast";
+import {
+  getCompanyStorage,
+  formatBytes,
+  DEFAULT_STORAGE_LIMIT,
+} from "@/lib/services/storageService";
+import { Progress } from "@/components/ui/progress";
+import { HardDrive } from "lucide-react";
 
 interface Project {
   id: string;
@@ -67,6 +81,10 @@ export default function DashboardPage() {
   const user = useAtomValue(authAtom);
   const userCompany = useAtomValue(userCompanyAtom);
   const router = useRouter();
+  const { user: authUser } = useAuth();
+  const { toast } = useToast();
+
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const [stats, setStats] = useState<DashboardStats>({
     totalProjects: 0,
@@ -76,6 +94,11 @@ export default function DashboardPage() {
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [storageInfo, setStorageInfo] = useState<{
+    used: number;
+    limit: number;
+    available: number;
+  } | null>(null);
 
   const getTimeAgo = (date: Date): string => {
     const now = new Date();
@@ -102,6 +125,30 @@ export default function DashboardPage() {
 
     try {
       setIsLoading(true);
+
+      // Load storage information
+      try {
+        const storage = await getCompanyStorage(userCompany.id);
+        setStorageInfo({
+          used: storage.storageUsed,
+          limit: storage.storageLimit,
+          available: storage.storageAvailable,
+        });
+      } catch (error) {
+        console.error("Error loading storage info:", error);
+        // Initialize with default if company doesn't have storage fields
+        const companyDoc = await getDoc(doc(db, "companies", userCompany.id));
+        if (companyDoc.exists()) {
+          const companyData = companyDoc.data();
+          const limit = companyData.storageLimit || DEFAULT_STORAGE_LIMIT;
+          const used = companyData.storageUsed || 0;
+          setStorageInfo({
+            used,
+            limit,
+            available: limit - used,
+          });
+        }
+      }
 
       // Load projects for the user's company
       const projectsSnapshot = await getDocs(
@@ -355,13 +402,12 @@ export default function DashboardPage() {
                   <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium">No projects yet</h3>
                   <p className="text-muted-foreground mb-4">
-                    Get started by uploading a PDF and creating your first
-                    project.
+                    Get started by creating your first project.
                   </p>
                   <Button asChild>
-                    <Link href="/takeoff-calculator">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Start Your First Project
+                    <Link href="/projects">
+                      Go to Projects
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </Link>
                   </Button>
                 </div>
@@ -423,45 +469,283 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions & Activity */}
+        {/* Storage Usage & Activity */}
         <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Play className="w-5 h-5 mr-2" />
-                Quick Actions
-              </CardTitle>
+          {/* Storage Usage */}
+          <Card className="border-primary/20 bg-gradient-to-br from-background to-muted/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <HardDrive className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold">
+                      Storage Usage
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-0.5">
+                      Company storage overview
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start" asChild>
-                <Link href="/takeoff-calculator">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload New PDF
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                asChild
-              >
-                <Link href="/takeoff-calculator">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Project
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                asChild
-              >
-                <Link href="/takeoff-calculator">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  View Analytics
-                </Link>
-              </Button>
+            <CardContent className="space-y-4">
+              {isLoading || !storageInfo ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ) : (
+                <>
+                  {/* Main Storage Display */}
+                  <div className="space-y-3">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold tracking-tight">
+                            {formatBytes(storageInfo.used)}
+                          </span>
+                          <span className="text-lg text-muted-foreground font-medium">
+                            / {formatBytes(storageInfo.limit)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Total storage used
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary">
+                          {(
+                            (storageInfo.used / storageInfo.limit) *
+                            100
+                          ).toFixed(1)}
+                          %
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          capacity
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                      <Progress
+                        value={(storageInfo.used / storageInfo.limit) * 100}
+                        className={`h-3 ${
+                          (storageInfo.used / storageInfo.limit) * 100 > 90
+                            ? "[&>div]:bg-red-500"
+                            : (storageInfo.used / storageInfo.limit) * 100 > 75
+                            ? "[&>div]:bg-yellow-500"
+                            : "[&>div]:bg-primary"
+                        }`}
+                      />
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          {formatBytes(storageInfo.available)} available
+                        </span>
+                        <span className="font-medium text-muted-foreground">
+                          {(
+                            ((storageInfo.limit - storageInfo.used) /
+                              storageInfo.limit) *
+                            100
+                          ).toFixed(1)}
+                          % remaining
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Storage Breakdown */}
+                  <div className="pt-3 border-t space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Storage Limit
+                      </span>
+                      <span className="font-semibold">
+                        {formatBytes(storageInfo.limit)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Used</span>
+                      <span className="font-semibold">
+                        {formatBytes(storageInfo.used)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Available</span>
+                      <span
+                        className={`font-semibold ${
+                          storageInfo.available < 100 * 1024 * 1024
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-green-600 dark:text-green-400"
+                        }`}
+                      >
+                        {formatBytes(storageInfo.available)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Warning Alert */}
+                  {storageInfo.available < 100 * 1024 * 1024 && (
+                    <div className="rounded-lg bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 dark:border-yellow-500/20 p-3 mt-3">
+                      <div className="flex items-start gap-2">
+                        <div className="p-1 rounded-full bg-yellow-500/20 shrink-0 mt-0.5">
+                          <HardDrive className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-1">
+                            Low Storage Warning
+                          </p>
+                          <p className="text-xs text-yellow-600/80 dark:text-yellow-400/80">
+                            Less than 100MB remaining. Consider upgrading your
+                            storage plan or removing unused files.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
+
+          {/* File Upload Dialog */}
+          {userCompany && authUser && (
+            <FileUploadDialog
+              open={uploadDialogOpen}
+              onOpenChange={setUploadDialogOpen}
+              onFileSelect={() => {}}
+              onProjectSelect={async (project) => {
+                setUploadDialogOpen(false);
+                router.push(
+                  `/takeoff-calculator?companyId=${userCompany.id}&projectId=${project.id}`
+                );
+              }}
+              onNewProject={async (
+                projectName: string,
+                fileName: string,
+                file: File,
+                onProgress?: (
+                  step:
+                    | "creating-project"
+                    | "uploading-file"
+                    | "creating-document"
+                    | "complete"
+                    | "error",
+                  progress: number
+                ) => void
+              ) => {
+                if (!user || !userCompany || !authUser) return;
+
+                try {
+                  // Step 1: Create project in Firestore
+                  onProgress?.("creating-project", 20);
+                  const currentProjectId = "project-" + Date.now();
+                  await setDoc(
+                    doc(
+                      db,
+                      "companies",
+                      userCompany.id,
+                      "projects",
+                      currentProjectId
+                    ),
+                    {
+                      name: projectName,
+                      description: `Project for ${fileName}`,
+                      status: "active",
+                      createdAt: new Date().toISOString(),
+                      createdBy: authUser.uid,
+                    }
+                  );
+
+                  // Step 2: Check storage availability before uploading
+                  onProgress?.("uploading-file", 40);
+                  const { checkStorageAvailability, increaseStorageUsage } =
+                    await import("@/lib/services/storageService");
+                  const storageCheck = await checkStorageAvailability(
+                    userCompany.id,
+                    file.size
+                  );
+
+                  if (!storageCheck.available) {
+                    throw new Error(
+                      `Storage limit exceeded. Available: ${formatBytes(
+                        storageCheck.availableBytes
+                      )}, Required: ${formatBytes(file.size)}`
+                    );
+                  }
+
+                  // Step 3: Upload file to Cloudflare R2
+                  onProgress?.("uploading-file", 50);
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  formData.append("companyId", userCompany.id);
+                  formData.append("projectId", currentProjectId);
+
+                  const uploadResponse = await fetch("/api/upload-file", {
+                    method: "POST",
+                    body: formData,
+                  });
+
+                  if (!uploadResponse.ok) {
+                    let errorData: any = {};
+                    try {
+                      errorData = await uploadResponse.json();
+                    } catch (e) {
+                      // If response is not JSON, try to get text
+                      const text = await uploadResponse.text().catch(() => "");
+                      errorData = { error: text || "Unknown error" };
+                    }
+
+                    throw new Error(
+                      errorData.error ||
+                        errorData.message ||
+                        "Failed to upload file to cloud storage"
+                    );
+                  }
+
+                  const { fileUrl, fileSize } = await uploadResponse.json();
+
+                  // Step 4: Update storage usage after successful upload
+                  await increaseStorageUsage(userCompany.id, file.size);
+
+                  // Step 5: Create measurement document
+                  onProgress?.("creating-document", 80);
+                  await createMeasurementDocument(
+                    userCompany.id,
+                    currentProjectId,
+                    {
+                      name: fileName.replace(/\.pdf$/i, ""),
+                      fileName,
+                      fileUrl,
+                      fileSize,
+                      userId: authUser.uid,
+                    }
+                  );
+
+                  // Step 6: Complete
+                  onProgress?.("complete", 100);
+
+                  // Navigate to takeoff calculator with the new project
+                  router.push(
+                    `/takeoff-calculator?companyId=${userCompany.id}&projectId=${currentProjectId}`
+                  );
+                } catch (error: any) {
+                  console.error("Error creating project:", error);
+                  onProgress?.("error", 0);
+                  toast({
+                    title: "Error",
+                    description: error?.message || "Failed to create project",
+                    variant: "destructive",
+                  });
+                  throw error; // Re-throw so dialog can handle it
+                }
+              }}
+              companyId={userCompany.id}
+            />
+          )}
 
           {/* Recent Activity */}
           <Card>

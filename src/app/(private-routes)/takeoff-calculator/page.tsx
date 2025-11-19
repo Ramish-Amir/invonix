@@ -122,6 +122,52 @@ export default function PDFViewer() {
     initializeUserData();
   }, [user]);
 
+  // Load project when projectId is in URL
+  useEffect(() => {
+    const loadProjectFromUrl = async () => {
+      if (!companyId || !projectId || !user) return;
+
+      try {
+        // Load existing measurement documents from this project
+        const docs = await getProjectMeasurementDocuments(companyId, projectId);
+        if (docs.length > 0) {
+          // Load the most recent document
+          const latestDoc = docs[0];
+          const fullDocument = await getMeasurementDocument(
+            companyId,
+            projectId,
+            latestDoc.id
+          );
+          if (fullDocument) {
+            setCurrentDocument(fullDocument);
+            setMeasurements(fullDocument.measurements || []);
+            setTags(
+              fullDocument.tags || [{ id: "1", name: "65", color: "#ef4444" }]
+            );
+            setPageScales(fullDocument.pageScales || {});
+            setCallibrationScale(fullDocument.callibrationScale || {});
+            setViewportDimensions(
+              fullDocument.viewportDimensions || { width: 0, height: 0 }
+            );
+
+            // Load PDF from cloud URL if available
+            if (fullDocument.fileUrl) {
+              // Use proxy endpoint to bypass CORS issues
+              const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+                fullDocument.fileUrl
+              )}`;
+              setFile(proxyUrl);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading project from URL:", error);
+      }
+    };
+
+    loadProjectFromUrl();
+  }, [companyId, projectId, user]);
+
   // Auto-save functionality (only if we have valid company and project IDs)
   const { forceSave } = useAutoSave({
     document: currentDocument,
@@ -161,7 +207,7 @@ export default function PDFViewer() {
     setUploadDialogOpen(true);
   };
 
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = (selectedFile: File | string) => {
     setFile(selectedFile);
     setNumPages(undefined);
     setMeasurements([]);
@@ -173,16 +219,30 @@ export default function PDFViewer() {
     setCurrentDocument(null);
   };
 
-  const handleNewMeasurement = async (fileName: string) => {
+  const handleNewMeasurement = async (
+    projectName: string,
+    fileName: string,
+    file: File,
+    onProgress?: (
+      step:
+        | "creating-project"
+        | "uploading-file"
+        | "creating-document"
+        | "complete"
+        | "error",
+      progress: number
+    ) => void
+  ) => {
     if (!user || !companyId) return;
 
     try {
-      // Always create a new project for new measurements
+      // Step 1: Create project in Firestore
+      onProgress?.("creating-project", 20);
       const currentProjectId = "project-" + Date.now();
       await setDoc(
         doc(db, "companies", companyId, "projects", currentProjectId),
         {
-          name: fileName.replace(/\.pdf$/i, ""),
+          name: projectName,
           description: `Project for ${fileName}`,
           status: "active",
           createdAt: new Date().toISOString(),
@@ -191,17 +251,69 @@ export default function PDFViewer() {
       );
       setProjectId(currentProjectId);
 
-      // Update URL with the new project ID
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set("projectId", currentProjectId);
-      router.replace(newUrl.pathname + newUrl.search);
+      // Navigate to takeoff calculator with the new project
+      router.push(
+        `/takeoff-calculator?companyId=${companyId}&projectId=${currentProjectId}`
+      );
 
+      // Step 2: Check storage availability before uploading
+      onProgress?.("uploading-file", 40);
+      const { checkStorageAvailability, increaseStorageUsage, formatBytes } =
+        await import("@/lib/services/storageService");
+      const storageCheck = await checkStorageAvailability(companyId, file.size);
+
+      if (!storageCheck.available) {
+        throw new Error(
+          `Storage limit exceeded. Available: ${formatBytes(
+            storageCheck.availableBytes
+          )}, Required: ${formatBytes(file.size)}`
+        );
+      }
+
+      // Step 3: Upload file to Cloudflare R2
+      onProgress?.("uploading-file", 50);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("companyId", companyId);
+      formData.append("projectId", currentProjectId);
+
+      const uploadResponse = await fetch("/api/upload-file", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        let errorData: any = {};
+        try {
+          errorData = await uploadResponse.json();
+        } catch (e) {
+          // If response is not JSON, try to get text
+          const text = await uploadResponse.text().catch(() => "");
+          errorData = { error: text || "Unknown error" };
+        }
+
+        throw new Error(
+          errorData.error ||
+            errorData.message ||
+            "Failed to upload file to cloud storage"
+        );
+      }
+
+      const { fileUrl, fileSize } = await uploadResponse.json();
+
+      // Step 4: Update storage usage after successful upload
+      await increaseStorageUsage(companyId, file.size);
+
+      // Step 5: Create measurement document
+      onProgress?.("creating-document", 80);
       const documentId = await createMeasurementDocument(
         companyId,
         currentProjectId,
         {
           name: fileName.replace(/\.pdf$/i, ""),
           fileName,
+          fileUrl,
+          fileSize,
           userId: user.uid,
         }
       );
@@ -210,6 +322,8 @@ export default function PDFViewer() {
         id: documentId,
         name: fileName.replace(/\.pdf$/i, ""),
         fileName,
+        fileUrl,
+        fileSize,
         measurements: [],
         tags: [],
         pageScales: {},
@@ -221,8 +335,18 @@ export default function PDFViewer() {
       };
 
       setCurrentDocument(newDocument);
-    } catch (error) {
+
+      // Step 6: Complete
+      onProgress?.("complete", 100);
+
+      // Set the file URL so the PDF viewer can load it
+      // Use proxy endpoint to bypass CORS issues
+      const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(fileUrl)}`;
+      setFile(proxyUrl);
+    } catch (error: any) {
       console.error("Error creating new measurement document:", error);
+      onProgress?.("error", 0);
+      throw error; // Re-throw so dialog can handle it
     }
   };
 
@@ -266,6 +390,15 @@ export default function PDFViewer() {
           setViewportDimensions(
             fullDocument.viewportDimensions || { width: 0, height: 0 }
           );
+
+          // Load PDF from cloud URL if available
+          if (fullDocument.fileUrl) {
+            // Use proxy endpoint to bypass CORS issues
+            const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+              fullDocument.fileUrl
+            )}`;
+            setFile(proxyUrl);
+          }
         }
       }
     } catch (error) {
@@ -535,35 +668,26 @@ export default function PDFViewer() {
         </div>
       )}
 
-      {file && (
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          {/* Left: File Info */}
-          <div className="flex gap-2 items-center text-muted-foreground">
-            <FileText />
-            {file
-              ? typeof file === "string"
-                ? file.split("/").pop()
-                : file?.name
-              : "No project loaded"}
-          </div>
-
-          {/* Right: New Take-off */}
-          <div className="flex items-center gap-2">
-            <Button onClick={handleNewTakeoff} className="h-9">
-              <Upload className="w-4 h-4 mr-2" />
-              New Take-off
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* File Upload Dialog */}
       <FileUploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         onFileSelect={handleFileSelect}
         onProjectSelect={handleExistingProjectSelect}
-        onNewProject={handleNewMeasurement}
+        onNewProject={(
+          projectName: string,
+          fileName: string,
+          file: File,
+          onProgress?: (
+            step:
+              | "creating-project"
+              | "uploading-file"
+              | "creating-document"
+              | "complete"
+              | "error",
+            progress: number
+          ) => void
+        ) => handleNewMeasurement(projectName, fileName, file, onProgress)}
         companyId={companyId}
       />
 
