@@ -402,13 +402,12 @@ export default function DashboardPage() {
                   <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium">No projects yet</h3>
                   <p className="text-muted-foreground mb-4">
-                    Get started by uploading a PDF and creating your first
-                    project.
+                    Get started by creating your first project.
                   </p>
                   <Button asChild>
-                    <Link href="/takeoff-calculator">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Start Your First Project
+                    <Link href="/projects">
+                      Go to Projects
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </Link>
                   </Button>
                 </div>

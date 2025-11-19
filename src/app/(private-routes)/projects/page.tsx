@@ -231,7 +231,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
     try {
       setIsDeleting(true);
 
-      // Get all measurement documents for this project to find file URLs
+      // Get all measurement documents for this project
       const { getProjectMeasurementDocuments } = await import(
         "@/lib/services/measurementService"
       );
@@ -240,9 +240,32 @@ export default function ProjectsPage({}: ProjectsPageProps) {
         projectId
       );
 
-      // Delete all associated files from R2 and track storage to decrease
+      // Step 1: Delete all measurement documents from Firestore
+      const measurementDeletePromises = measurementDocs.map((measurementDoc) => {
+        return deleteDoc(
+          doc(
+            db,
+            "companies",
+            userCompany.id,
+            "projects",
+            projectId,
+            "measurements",
+            measurementDoc.id
+          )
+        ).catch((error) => {
+          console.error(
+            `Failed to delete measurement document ${measurementDoc.id}:`,
+            error
+          );
+          // Continue even if individual measurement deletion fails
+        });
+      });
+
+      await Promise.all(measurementDeletePromises);
+
+      // Step 2: Delete all associated files from R2 and track storage to decrease
       let totalStorageToDecrease = 0;
-      const deletePromises = measurementDocs
+      const fileDeletePromises = measurementDocs
         .filter((doc) => doc.fileUrl)
         .map((doc) => {
           // Track file size for storage update
@@ -264,20 +287,25 @@ export default function ProjectsPage({}: ProjectsPageProps) {
           });
         });
 
-      await Promise.all(deletePromises);
+      await Promise.all(fileDeletePromises);
 
-      // Decrease company storage usage after successful file deletions
-      if (totalStorageToDecrease > 0) {
-        const { decreaseStorageUsage } = await import(
-          "@/lib/services/storageService"
-        );
-        await decreaseStorageUsage(userCompany.id, totalStorageToDecrease);
-      }
-
-      // Delete the project document
+      // Step 3: Delete the project document (do this before storage update to ensure it happens)
       await deleteDoc(
         doc(db, "companies", userCompany.id, "projects", projectId)
       );
+
+      // Step 4: Decrease company storage usage (don't let this block the deletion)
+      if (totalStorageToDecrease > 0) {
+        try {
+          const { decreaseStorageUsage } = await import(
+            "@/lib/services/storageService"
+          );
+          await decreaseStorageUsage(userCompany.id, totalStorageToDecrease);
+        } catch (storageError) {
+          console.error("Error decreasing storage usage:", storageError);
+          // Log but don't fail - project is already deleted
+        }
+      }
 
       // Update local state
       setProjects(projects.filter((p) => p.id !== projectId));
@@ -293,7 +321,10 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       console.error("Error deleting project:", error);
       toast({
         title: "Error",
-        description: "Failed to delete project",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete project",
         variant: "destructive",
       });
     } finally {
