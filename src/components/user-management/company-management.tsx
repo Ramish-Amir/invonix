@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Building, Users, Plus, Edit, Trash2, FolderOpen } from "lucide-react";
+import { Building, Users, Plus, Edit, Trash2, FolderOpen, HardDrive } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
