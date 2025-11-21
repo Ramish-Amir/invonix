@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Upload, FileText, Save, Info, Undo, Redo } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Undo,
+  Redo,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+} from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
@@ -12,11 +20,11 @@ import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-
 import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
 import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
 import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
-import {
-  DocumentManager,
-  DocumentInfoDialog,
-} from "@/components/takeoff-calculator/document-manager";
+import { DocumentManager } from "@/components/takeoff-calculator/document-manager";
+import { DocumentActions } from "@/components/takeoff-calculator/document-actions";
+import { ClearAllMeasurementsDialog } from "@/components/takeoff-calculator/clear-all-measurements-dialog";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -33,6 +41,7 @@ import {
   createMeasurementDocument,
   getMeasurementDocument,
   getProjectMeasurementDocuments,
+  updateMeasurementDocument,
 } from "@/lib/services/measurementService";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -85,6 +94,8 @@ export default function PDFViewer() {
   const [currentDocument, setCurrentDocument] =
     useState<MeasurementDocument | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [clearMeasurementsDialogOpen, setClearMeasurementsDialogOpen] =
+    useState(false);
 
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
@@ -94,6 +105,11 @@ export default function PDFViewer() {
     { id: "1", name: "65", color: "#ef4444" },
   ]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
+
+  // Scale mode: 'universal' applies to all pages, 'per-page' applies to current page only
+  const [scaleMode, setScaleMode] = useState<"universal" | "per-page">(
+    "universal"
+  );
 
   // Get user's company ID and create project if needed
   const initializeUserData = async () => {
@@ -610,6 +626,41 @@ export default function PDFViewer() {
     setCurrentDocument(updatedDocument);
   };
 
+  const handleClearAllMeasurements = async () => {
+    if (!currentDocument || !companyId || !projectId) return;
+
+    try {
+      // Clear all measurements from state
+      setMeasurements([]);
+      setHistory([]);
+      setRedoStack([]);
+      setPinnedIds(new Set());
+
+      // Update document in database
+      await updateMeasurementDocument(
+        companyId,
+        projectId,
+        currentDocument.id,
+        {
+          measurements: [],
+        }
+      );
+
+      // Update local document state
+      const updatedDocument: MeasurementDocument = {
+        ...currentDocument,
+        measurements: [],
+        updatedAt: new Date(),
+      };
+      setCurrentDocument(updatedDocument);
+
+      // Close dialog
+      setClearMeasurementsDialogOpen(false);
+    } catch (error) {
+      console.error("Error clearing measurements:", error);
+    }
+  };
+
   // Show loading message while getting user data
   if (!companyId && user) {
     return (
@@ -648,25 +699,22 @@ export default function PDFViewer() {
             companyId={companyId}
             projectId={projectId}
           >
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={forceSave}
-                className="h-8"
-              >
-                <Save className="w-3 h-3 mr-1" />
-                Save
-              </Button>
-              <DocumentInfoDialog document={currentDocument}>
-                <Button size="sm" variant="outline" className="h-8">
-                  <Info className="w-3 h-3" />
-                </Button>
-              </DocumentInfoDialog>
-            </div>
+            <DocumentActions
+              document={currentDocument}
+              measurementCount={measurements.length}
+              onClearAll={() => setClearMeasurementsDialogOpen(true)}
+            />
           </DocumentManager>
         </div>
       )}
+
+      {/* Clear All Measurements Confirmation Dialog */}
+      <ClearAllMeasurementsDialog
+        open={clearMeasurementsDialogOpen}
+        onOpenChange={setClearMeasurementsDialogOpen}
+        onConfirm={handleClearAllMeasurements}
+        measurementCount={measurements.length}
+      />
 
       {/* File Upload Dialog */}
       <FileUploadDialog
@@ -731,32 +779,118 @@ export default function PDFViewer() {
 
             <div className="w-px h-4 bg-border mx-1"></div>
 
-            <span className="text-xs text-muted-foreground">Scale:</span>
-            <DrawingCallibrationScale
-              setCallibrationScale={(newCallibrationScale: string) =>
-                setCallibrationScale((prev) => ({
-                  ...prev,
-                  [currentPage]: newCallibrationScale,
-                }))
-              }
-              callibrationScale={callibrationScale[currentPage]}
-            />
-            <span className="text-xs text-muted-foreground">Zoom:</span>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              step={1}
-              value={pageScales[currentPage] ?? 1.25}
-              onChange={(e) =>
-                setPageScales((prev) => ({
-                  ...prev,
-                  [currentPage]: Number(e.target.value),
-                }))
-              }
-              className="w-16 px-2 py-1 border border-input rounded text-xs bg-background text-foreground"
-              aria-label={`Zoom for page ${currentPage}`}
-            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Scale:
+              </span>
+              <DrawingCallibrationScale
+                scaleMode={scaleMode}
+                onScaleModeChange={(newMode) => {
+                  setScaleMode(newMode);
+                  // When switching to universal mode, sync all pages to current page's scale
+                  if (newMode === "universal" && numPages) {
+                    const currentScale =
+                      callibrationScale[currentPage] ||
+                      DEFAULT_CALLIBRATION_VALUE;
+                    const newCallibrationScales: { [page: number]: string } =
+                      {};
+                    for (let i = 1; i <= numPages; i++) {
+                      newCallibrationScales[i] = currentScale;
+                    }
+                    setCallibrationScale(newCallibrationScales);
+                  }
+                }}
+                setCallibrationScale={(newCallibrationScale: string) => {
+                  if (scaleMode === "universal" && numPages) {
+                    // Update all pages
+                    const newCallibrationScales: { [page: number]: string } =
+                      {};
+                    for (let i = 1; i <= numPages; i++) {
+                      newCallibrationScales[i] = newCallibrationScale;
+                    }
+                    setCallibrationScale(newCallibrationScales);
+                  } else {
+                    // Update current page only
+                    setCallibrationScale((prev) => ({
+                      ...prev,
+                      [currentPage]: newCallibrationScale,
+                    }));
+                  }
+                }}
+                callibrationScale={callibrationScale[currentPage]}
+              />
+            </div>
+            <div className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-md border border-border">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Zoom:
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const currentScale = pageScales[currentPage] ?? 1.25;
+                    const newScale = Math.max(1, currentScale - 0.25);
+                    setPageScales((prev) => ({
+                      ...prev,
+                      [currentPage]: newScale,
+                    }));
+                  }}
+                  disabled={(pageScales[currentPage] ?? 1.25) <= 1}
+                  className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Zoom out"
+                  aria-label="Zoom out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <div className="flex items-center gap-2 min-w-[120px]">
+                  <Slider
+                    min={1}
+                    max={10}
+                    step={0.05}
+                    value={[pageScales[currentPage] ?? 1.25]}
+                    onValueChange={([val]) =>
+                      setPageScales((prev) => ({
+                        ...prev,
+                        [currentPage]: val,
+                      }))
+                    }
+                    className="w-full"
+                    aria-label={`Zoom for page ${currentPage}`}
+                  />
+                  <span className="text-xs font-medium text-foreground min-w-[3rem] text-right">
+                    {Math.round((pageScales[currentPage] ?? 1.25) * 100)}%
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const currentScale = pageScales[currentPage] ?? 1.25;
+                    const newScale = Math.min(10, currentScale + 0.25);
+                    setPageScales((prev) => ({
+                      ...prev,
+                      [currentPage]: newScale,
+                    }));
+                  }}
+                  disabled={(pageScales[currentPage] ?? 1.25) >= 10}
+                  className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Zoom in"
+                  aria-label="Zoom in"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setPageScales((prev) => ({
+                      ...prev,
+                      [currentPage]: 1.25,
+                    }));
+                  }}
+                  className="p-1 rounded hover:bg-accent transition-colors"
+                  title="Reset zoom to default"
+                  aria-label="Reset zoom"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -788,7 +922,7 @@ export default function PDFViewer() {
             >
               {Array.from(new Array(numPages), (_, index) => {
                 const pageNumber = index + 1;
-                const isVisible = Math.abs(pageNumber - currentPage) <= 1;
+                const isVisible = Math.abs(pageNumber - currentPage) <= 3;
                 const scale = pageScales[pageNumber] ?? 1.25;
                 const scaleFactor =
                   getDrawingCallibrations(
