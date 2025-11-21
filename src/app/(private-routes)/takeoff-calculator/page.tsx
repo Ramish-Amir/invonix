@@ -96,6 +96,9 @@ export default function PDFViewer() {
   ]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
 
+  // Scale mode: 'universal' applies to all pages, 'per-page' applies to current page only
+  const [scaleMode, setScaleMode] = useState<"universal" | "per-page">("universal");
+
   // Get user's company ID and create project if needed
   const initializeUserData = async () => {
     if (!user) return;
@@ -732,16 +735,41 @@ export default function PDFViewer() {
 
             <div className="w-px h-4 bg-border mx-1"></div>
 
-            <span className="text-xs text-muted-foreground">Scale:</span>
-            <DrawingCallibrationScale
-              setCallibrationScale={(newCallibrationScale: string) =>
-                setCallibrationScale((prev) => ({
-                  ...prev,
-                  [currentPage]: newCallibrationScale,
-                }))
-              }
-              callibrationScale={callibrationScale[currentPage]}
-            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Scale:</span>
+              <DrawingCallibrationScale
+                scaleMode={scaleMode}
+                onScaleModeChange={(newMode) => {
+                  setScaleMode(newMode);
+                  // When switching to universal mode, sync all pages to current page's scale
+                  if (newMode === "universal" && numPages) {
+                    const currentScale = callibrationScale[currentPage] || DEFAULT_CALLIBRATION_VALUE;
+                    const newCallibrationScales: { [page: number]: string } = {};
+                    for (let i = 1; i <= numPages; i++) {
+                      newCallibrationScales[i] = currentScale;
+                    }
+                    setCallibrationScale(newCallibrationScales);
+                  }
+                }}
+                setCallibrationScale={(newCallibrationScale: string) => {
+                  if (scaleMode === "universal" && numPages) {
+                    // Update all pages
+                    const newCallibrationScales: { [page: number]: string } = {};
+                    for (let i = 1; i <= numPages; i++) {
+                      newCallibrationScales[i] = newCallibrationScale;
+                    }
+                    setCallibrationScale(newCallibrationScales);
+                  } else {
+                    // Update current page only
+                    setCallibrationScale((prev) => ({
+                      ...prev,
+                      [currentPage]: newCallibrationScale,
+                    }));
+                  }
+                }}
+                callibrationScale={callibrationScale[currentPage]}
+              />
+            </div>
             <div className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-md border border-border">
               <span className="text-xs text-muted-foreground whitespace-nowrap">Zoom:</span>
               <div className="flex items-center gap-1.5">
