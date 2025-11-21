@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { pdfjs, Document, Page } from "react-pdf";
-import { Upload, FileText, Save, Info, Undo, Redo, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Undo,
+  Redo,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+} from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
@@ -12,10 +20,9 @@ import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-
 import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
 import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
 import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
-import {
-  DocumentManager,
-  DocumentInfoDialog,
-} from "@/components/takeoff-calculator/document-manager";
+import { DocumentManager } from "@/components/takeoff-calculator/document-manager";
+import { DocumentActions } from "@/components/takeoff-calculator/document-actions";
+import { ClearAllMeasurementsDialog } from "@/components/takeoff-calculator/clear-all-measurements-dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useAutoSave } from "@/hooks/useAutoSave";
@@ -34,6 +41,7 @@ import {
   createMeasurementDocument,
   getMeasurementDocument,
   getProjectMeasurementDocuments,
+  updateMeasurementDocument,
 } from "@/lib/services/measurementService";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -86,6 +94,8 @@ export default function PDFViewer() {
   const [currentDocument, setCurrentDocument] =
     useState<MeasurementDocument | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [clearMeasurementsDialogOpen, setClearMeasurementsDialogOpen] =
+    useState(false);
 
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
@@ -97,7 +107,9 @@ export default function PDFViewer() {
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
 
   // Scale mode: 'universal' applies to all pages, 'per-page' applies to current page only
-  const [scaleMode, setScaleMode] = useState<"universal" | "per-page">("universal");
+  const [scaleMode, setScaleMode] = useState<"universal" | "per-page">(
+    "universal"
+  );
 
   // Get user's company ID and create project if needed
   const initializeUserData = async () => {
@@ -614,6 +626,41 @@ export default function PDFViewer() {
     setCurrentDocument(updatedDocument);
   };
 
+  const handleClearAllMeasurements = async () => {
+    if (!currentDocument || !companyId || !projectId) return;
+
+    try {
+      // Clear all measurements from state
+      setMeasurements([]);
+      setHistory([]);
+      setRedoStack([]);
+      setPinnedIds(new Set());
+
+      // Update document in database
+      await updateMeasurementDocument(
+        companyId,
+        projectId,
+        currentDocument.id,
+        {
+          measurements: [],
+        }
+      );
+
+      // Update local document state
+      const updatedDocument: MeasurementDocument = {
+        ...currentDocument,
+        measurements: [],
+        updatedAt: new Date(),
+      };
+      setCurrentDocument(updatedDocument);
+
+      // Close dialog
+      setClearMeasurementsDialogOpen(false);
+    } catch (error) {
+      console.error("Error clearing measurements:", error);
+    }
+  };
+
   // Show loading message while getting user data
   if (!companyId && user) {
     return (
@@ -652,25 +699,22 @@ export default function PDFViewer() {
             companyId={companyId}
             projectId={projectId}
           >
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={forceSave}
-                className="h-8"
-              >
-                <Save className="w-3 h-3 mr-1" />
-                Save
-              </Button>
-              <DocumentInfoDialog document={currentDocument}>
-                <Button size="sm" variant="outline" className="h-8">
-                  <Info className="w-3 h-3" />
-                </Button>
-              </DocumentInfoDialog>
-            </div>
+            <DocumentActions
+              document={currentDocument}
+              measurementCount={measurements.length}
+              onClearAll={() => setClearMeasurementsDialogOpen(true)}
+            />
           </DocumentManager>
         </div>
       )}
+
+      {/* Clear All Measurements Confirmation Dialog */}
+      <ClearAllMeasurementsDialog
+        open={clearMeasurementsDialogOpen}
+        onOpenChange={setClearMeasurementsDialogOpen}
+        onConfirm={handleClearAllMeasurements}
+        measurementCount={measurements.length}
+      />
 
       {/* File Upload Dialog */}
       <FileUploadDialog
@@ -736,15 +780,20 @@ export default function PDFViewer() {
             <div className="w-px h-4 bg-border mx-1"></div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Scale:</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Scale:
+              </span>
               <DrawingCallibrationScale
                 scaleMode={scaleMode}
                 onScaleModeChange={(newMode) => {
                   setScaleMode(newMode);
                   // When switching to universal mode, sync all pages to current page's scale
                   if (newMode === "universal" && numPages) {
-                    const currentScale = callibrationScale[currentPage] || DEFAULT_CALLIBRATION_VALUE;
-                    const newCallibrationScales: { [page: number]: string } = {};
+                    const currentScale =
+                      callibrationScale[currentPage] ||
+                      DEFAULT_CALLIBRATION_VALUE;
+                    const newCallibrationScales: { [page: number]: string } =
+                      {};
                     for (let i = 1; i <= numPages; i++) {
                       newCallibrationScales[i] = currentScale;
                     }
@@ -754,7 +803,8 @@ export default function PDFViewer() {
                 setCallibrationScale={(newCallibrationScale: string) => {
                   if (scaleMode === "universal" && numPages) {
                     // Update all pages
-                    const newCallibrationScales: { [page: number]: string } = {};
+                    const newCallibrationScales: { [page: number]: string } =
+                      {};
                     for (let i = 1; i <= numPages; i++) {
                       newCallibrationScales[i] = newCallibrationScale;
                     }
@@ -771,7 +821,9 @@ export default function PDFViewer() {
               />
             </div>
             <div className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-md border border-border">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Zoom:</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Zoom:
+              </span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
