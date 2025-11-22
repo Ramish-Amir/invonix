@@ -15,11 +15,15 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { MeasurementDocument } from "@/lib/types/measurement";
+import { FixtureDocument } from "@/lib/types/fixture";
 import { updateMeasurementDocument } from "@/lib/services/measurementService";
+import { updateFixtureDocument } from "@/lib/services/fixtureService";
+
+type DocumentType = MeasurementDocument | FixtureDocument;
 
 interface DocumentManagerProps {
-  document: MeasurementDocument | null;
-  onDocumentUpdate: (document: MeasurementDocument) => void;
+  document: DocumentType | null;
+  onDocumentUpdate: (document: DocumentType) => void;
   companyId: string;
   projectId: string;
   children?: React.ReactNode;
@@ -53,9 +57,16 @@ export function DocumentManager({
 
     setIsSaving(true);
     try {
-      await updateMeasurementDocument(companyId, projectId, document.id, {
-        name: editName.trim(),
-      });
+      // Check if it's a MeasurementDocument or FixtureDocument
+      if ("measurements" in document) {
+        await updateMeasurementDocument(companyId, projectId, document.id, {
+          name: editName.trim(),
+        });
+      } else {
+        await updateFixtureDocument(companyId, projectId, document.id, {
+          name: editName.trim(),
+        });
+      }
 
       const updatedDocument = {
         ...document,
@@ -133,7 +144,9 @@ export function DocumentManager({
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Badge variant="outline" className="flex items-center gap-1">
           <Ruler className="w-3 h-3" />
-          {document.measurements.length} measurements
+          {"measurements" in document
+            ? `${document.measurements.length} measurements`
+            : `${document.fixtures.length} fixtures`}
         </Badge>
         <Badge variant="outline" className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
@@ -148,7 +161,7 @@ export function DocumentManager({
 
 // Document Info Dialog Component
 interface DocumentInfoDialogProps {
-  document: MeasurementDocument | null;
+  document: DocumentType | null;
   children: React.ReactNode;
 }
 
@@ -165,7 +178,7 @@ export function DocumentInfoDialog({
         <DialogHeader>
           <DialogTitle>Document Information</DialogTitle>
           <DialogDescription>
-            Details about the current measurement document.
+            Details about the current document.
           </DialogDescription>
         </DialogHeader>
 
@@ -199,9 +212,13 @@ export function DocumentInfoDialog({
           </div>
 
           <div>
-            <Label className="text-sm font-medium">Measurements</Label>
+            <Label className="text-sm font-medium">
+              {"measurements" in document ? "Measurements" : "Fixtures"}
+            </Label>
             <p className="text-sm text-muted-foreground">
-              {document.measurements.length} total measurements
+              {"measurements" in document
+                ? `${document.measurements.length} total measurements`
+                : `${document.fixtures.length} total fixtures`}
             </p>
           </div>
 

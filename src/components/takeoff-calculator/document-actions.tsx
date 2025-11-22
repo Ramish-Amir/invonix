@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { DocumentInfoDialog } from "./document-manager";
 import { ClearAllMeasurementsButton } from "./clear-all-measurements-button";
 import { MeasurementDocument } from "@/lib/types/measurement";
+import { FixtureDocument } from "@/lib/types/fixture";
+
+type DocumentType = MeasurementDocument | FixtureDocument;
 
 interface DocumentActionsProps {
-  document: MeasurementDocument;
+  document: DocumentType;
   measurementCount: number;
   onClearAll: () => void;
 }

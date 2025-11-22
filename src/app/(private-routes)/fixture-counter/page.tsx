@@ -16,33 +16,29 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { TakeoffControlMenu } from "@/components/takeoff-calculator/control-menu";
 import { DrawingCallibrationScale } from "@/components/takeoff-calculator/callibration-scale";
-import { MeasurementOverlay } from "@/components/takeoff-calculator/measurement-overlay";
+import { FixtureOverlay } from "@/components/fixture-counter/fixture-overlay";
 import { TagSelector, Tag } from "@/components/takeoff-calculator/tag-selector";
-import { MeasurementSummary } from "@/components/takeoff-calculator/measurement-summary";
+import { FixtureSummary } from "@/components/fixture-counter/fixture-summary";
 import { FileUploadDialog } from "@/components/takeoff-calculator/file-upload-dialog";
 import { DocumentManager } from "@/components/takeoff-calculator/document-manager";
 import { DocumentActions } from "@/components/takeoff-calculator/document-actions";
-import { ClearAllMeasurementsDialog } from "@/components/takeoff-calculator/clear-all-measurements-dialog";
+import { ClearAllFixturesDialog } from "@/components/fixture-counter/clear-all-fixtures-dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useAutoSave } from "@/hooks/useAutoSave";
+import { useAutoSaveFixtures } from "@/hooks/useAutoSaveFixtures";
 import { useAuth } from "@/hooks/useAuth";
+import { DEFAULT_CALLIBRATION_VALUE } from "@/lib/drawingCallibrations";
+import { FixtureDocument, Fixture, Point } from "@/lib/types/fixture";
+import { MeasurementDocument } from "@/lib/types/measurement";
 import {
-  DEFAULT_CALLIBRATION_VALUE,
-  DrawingCalibrations,
-  getDrawingCallibrations,
-} from "@/lib/drawingCallibrations";
+  createFixtureDocument,
+  getFixtureDocument,
+  getProjectFixtureDocuments,
+  updateFixtureDocument,
+} from "@/lib/services/fixtureService";
 import {
-  MeasurementDocument,
-  Measurement,
-  Point,
-} from "@/lib/types/measurement";
-import { FixtureDocument } from "@/lib/types/fixture";
-import {
-  createMeasurementDocument,
-  getMeasurementDocument,
   getProjectMeasurementDocuments,
-  updateMeasurementDocument,
+  getMeasurementDocument,
 } from "@/lib/services/measurementService";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -63,7 +59,7 @@ type PDFFile = string | File | null;
 
 const maxWidth = 800;
 
-export default function PDFViewer() {
+export default function FixtureCounter() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -87,23 +83,22 @@ export default function PDFViewer() {
     width: 0,
     height: 0,
   });
-  const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [history, setHistory] = useState<Measurement[][]>([]);
-  const [redoStack, setRedoStack] = useState<Measurement[][]>([]);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [history, setHistory] = useState<Fixture[][]>([]);
+  const [redoStack, setRedoStack] = useState<Fixture[][]>([]);
 
   // Document management state
   const [currentDocument, setCurrentDocument] =
-    useState<MeasurementDocument | null>(null);
+    useState<FixtureDocument | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [clearMeasurementsDialogOpen, setClearMeasurementsDialogOpen] =
-    useState(false);
+  const [clearFixturesDialogOpen, setClearFixturesDialogOpen] = useState(false);
 
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
 
-  // Tag state
+  // Tag state (fixture names)
   const [tags, setTags] = useState<Tag[]>([
-    { id: "1", name: "65", color: "#ef4444" },
+    { id: "1", name: "FD-1", color: "#ef4444" },
   ]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(tags[0]);
 
@@ -145,36 +140,98 @@ export default function PDFViewer() {
       if (!companyId || !projectId || !user) return;
 
       try {
-        // Load existing measurement documents from this project
-        const docs = await getProjectMeasurementDocuments(companyId, projectId);
+        // First try to load existing fixture documents from this project
+        let docs = await getProjectFixtureDocuments(companyId, projectId);
+        let fullDocument: FixtureDocument | null = null;
+
         if (docs.length > 0) {
-          // Load the most recent document
+          // Load the most recent fixture document
           const latestDoc = docs[0];
-          const fullDocument = await getMeasurementDocument(
+          fullDocument = await getFixtureDocument(
             companyId,
             projectId,
             latestDoc.id
           );
-          if (fullDocument) {
-            setCurrentDocument(fullDocument);
-            setMeasurements(fullDocument.measurements || []);
-            setTags(
-              fullDocument.tags || [{ id: "1", name: "65", color: "#ef4444" }]
+        } else {
+          // If no fixture documents exist, check for measurement documents
+          // and use their fileUrl to load the PDF (user can start marking fixtures)
+          const measurementDocs = await getProjectMeasurementDocuments(
+            companyId,
+            projectId
+          );
+          if (measurementDocs.length > 0) {
+            const latestMeasurementDoc = measurementDocs[0];
+            const measurementDocument = await getMeasurementDocument(
+              companyId,
+              projectId,
+              latestMeasurementDoc.id
             );
-            setPageScales(fullDocument.pageScales || {});
-            setCallibrationScale(fullDocument.callibrationScale || {});
-            setViewportDimensions(
-              fullDocument.viewportDimensions || { width: 0, height: 0 }
-            );
+            if (measurementDocument && measurementDocument.fileUrl) {
+              // Create a new fixture document using the measurement document's file info
+              const fixtureDocId = await createFixtureDocument(
+                companyId,
+                projectId,
+                {
+                  name: measurementDocument.name + " (Fixtures)",
+                  fileName: measurementDocument.fileName,
+                  fileUrl: measurementDocument.fileUrl,
+                  fileSize: measurementDocument.fileSize,
+                  userId: measurementDocument.userId,
+                }
+              );
 
-            // Load PDF from cloud URL if available
-            if (fullDocument.fileUrl) {
-              // Use proxy endpoint to bypass CORS issues
-              const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
-                fullDocument.fileUrl
-              )}`;
-              setFile(proxyUrl);
+              // Load the newly created fixture document
+              const newFixtureDocument = await getFixtureDocument(
+                companyId,
+                projectId,
+                fixtureDocId
+              );
+
+              if (newFixtureDocument) {
+                setCurrentDocument(newFixtureDocument);
+                setFixtures([]);
+                setTags([{ id: "1", name: "FD-1", color: "#ef4444" }]);
+                setPageScales(measurementDocument.pageScales || {});
+                setCallibrationScale(
+                  measurementDocument.callibrationScale || {}
+                );
+                setViewportDimensions(
+                  measurementDocument.viewportDimensions || {
+                    width: 0,
+                    height: 0,
+                  }
+                );
+
+                // Load PDF from cloud URL
+                const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+                  measurementDocument.fileUrl
+                )}`;
+                setFile(proxyUrl);
+              }
             }
+            return; // Exit early
+          }
+        }
+
+        if (fullDocument) {
+          setCurrentDocument(fullDocument);
+          setFixtures(fullDocument.fixtures || []);
+          setTags(
+            fullDocument.tags || [{ id: "1", name: "FD-1", color: "#ef4444" }]
+          );
+          setPageScales(fullDocument.pageScales || {});
+          setCallibrationScale(fullDocument.callibrationScale || {});
+          setViewportDimensions(
+            fullDocument.viewportDimensions || { width: 0, height: 0 }
+          );
+
+          // Load PDF from cloud URL if available
+          if (fullDocument.fileUrl) {
+            // Use proxy endpoint to bypass CORS issues
+            const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+              fullDocument.fileUrl
+            )}`;
+            setFile(proxyUrl);
           }
         }
       } catch (error) {
@@ -186,9 +243,9 @@ export default function PDFViewer() {
   }, [companyId, projectId, user]);
 
   // Auto-save functionality (only if we have valid company and project IDs)
-  const { forceSave } = useAutoSave({
+  const { forceSave } = useAutoSaveFixtures({
     document: currentDocument,
-    measurements,
+    fixtures,
     tags,
     pageScales,
     callibrationScale,
@@ -197,12 +254,6 @@ export default function PDFViewer() {
     companyId: companyId || "",
     projectId: projectId || "",
   });
-
-  // Drag state
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<Point | null>(null);
-  const [dragEnd, setDragEnd] = useState<Point | null>(null);
-  const [dragPage, setDragPage] = useState<number | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   // const [pageInView, setPageInView] = useState(1);
@@ -227,7 +278,7 @@ export default function PDFViewer() {
   const handleFileSelect = (selectedFile: File | string) => {
     setFile(selectedFile);
     setNumPages(undefined);
-    setMeasurements([]);
+    setFixtures([]);
     setPageScales({});
     setCallibrationScale({});
     setHistory([]);
@@ -236,7 +287,7 @@ export default function PDFViewer() {
     setCurrentDocument(null);
   };
 
-  const handleNewMeasurement = async (
+  const handleNewFixture = async (
     projectName: string,
     fileName: string,
     file: File,
@@ -268,9 +319,9 @@ export default function PDFViewer() {
       );
       setProjectId(currentProjectId);
 
-      // Navigate to takeoff calculator with the new project
+      // Navigate to fixture counter with the new project
       router.push(
-        `/takeoff-calculator?companyId=${companyId}&projectId=${currentProjectId}`
+        `/fixture-counter?companyId=${companyId}&projectId=${currentProjectId}`
       );
 
       // Step 2: Check storage availability before uploading
@@ -321,9 +372,9 @@ export default function PDFViewer() {
       // Step 4: Update storage usage after successful upload
       await increaseStorageUsage(companyId, file.size);
 
-      // Step 5: Create measurement document
+      // Step 5: Create fixture document
       onProgress?.("creating-document", 80);
-      const documentId = await createMeasurementDocument(
+      const documentId = await createFixtureDocument(
         companyId,
         currentProjectId,
         {
@@ -335,13 +386,13 @@ export default function PDFViewer() {
         }
       );
 
-      const newDocument: MeasurementDocument = {
+      const newDocument: FixtureDocument = {
         id: documentId,
         name: fileName.replace(/\.pdf$/i, ""),
         fileName,
         fileUrl,
         fileSize,
-        measurements: [],
+        fixtures: [],
         tags: [],
         pageScales: {},
         callibrationScale: {},
@@ -361,7 +412,7 @@ export default function PDFViewer() {
       const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(fileUrl)}`;
       setFile(proxyUrl);
     } catch (error: any) {
-      console.error("Error creating new measurement document:", error);
+      console.error("Error creating new fixture document:", error);
       onProgress?.("error", 0);
       throw error; // Re-throw so dialog can handle it
     }
@@ -376,8 +427,8 @@ export default function PDFViewer() {
 
     // Reset the current document state
     setCurrentDocument(null);
-    setMeasurements([]);
-    setTags([{ id: "1", name: "65", color: "#ef4444" }]);
+    setFixtures([]);
+    setTags([{ id: "1", name: "FD-1", color: "#ef4444" }]);
     setPageScales({});
     setCallibrationScale({});
     setViewportDimensions({ width: 0, height: 0 });
@@ -385,41 +436,101 @@ export default function PDFViewer() {
     setRedoStack([]);
     setPinnedIds(new Set());
 
-    // Load existing measurement documents from this project
+    // Load existing fixture documents from this project
     try {
-      const docs = await getProjectMeasurementDocuments(companyId, project.id);
+      let docs = await getProjectFixtureDocuments(companyId, project.id);
+      let fullDocument: FixtureDocument | null = null;
+
       if (docs.length > 0) {
-        // Load the most recent document
+        // Load the most recent fixture document
         const latestDoc = docs[0];
-        const fullDocument = await getMeasurementDocument(
+        fullDocument = await getFixtureDocument(
           companyId,
           project.id,
           latestDoc.id
         );
-        if (fullDocument) {
-          setCurrentDocument(fullDocument);
-          setMeasurements(fullDocument.measurements || []);
-          setTags(
-            fullDocument.tags || [{ id: "1", name: "65", color: "#ef4444" }]
+      } else {
+        // If no fixture documents exist, check for measurement documents
+        // and use their fileUrl to load the PDF (user can start marking fixtures)
+        const measurementDocs = await getProjectMeasurementDocuments(
+          companyId,
+          project.id
+        );
+        if (measurementDocs.length > 0) {
+          const latestMeasurementDoc = measurementDocs[0];
+          const measurementDocument = await getMeasurementDocument(
+            companyId,
+            project.id,
+            latestMeasurementDoc.id
           );
-          setPageScales(fullDocument.pageScales || {});
-          setCallibrationScale(fullDocument.callibrationScale || {});
-          setViewportDimensions(
-            fullDocument.viewportDimensions || { width: 0, height: 0 }
-          );
+          if (measurementDocument && measurementDocument.fileUrl) {
+            // Create a new fixture document using the measurement document's file info
+            const fixtureDocId = await createFixtureDocument(
+              companyId,
+              project.id,
+              {
+                name: measurementDocument.name + " (Fixtures)",
+                fileName: measurementDocument.fileName,
+                fileUrl: measurementDocument.fileUrl,
+                fileSize: measurementDocument.fileSize,
+                userId: measurementDocument.userId,
+              }
+            );
 
-          // Load PDF from cloud URL if available
-          if (fullDocument.fileUrl) {
-            // Use proxy endpoint to bypass CORS issues
-            const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
-              fullDocument.fileUrl
-            )}`;
-            setFile(proxyUrl);
+            // Load the newly created fixture document
+            const newFixtureDocument = await getFixtureDocument(
+              companyId,
+              project.id,
+              fixtureDocId
+            );
+
+            if (newFixtureDocument) {
+              setCurrentDocument(newFixtureDocument);
+              setFixtures([]);
+              setTags([{ id: "1", name: "FD-1", color: "#ef4444" }]);
+              setPageScales(measurementDocument.pageScales || {});
+              setCallibrationScale(measurementDocument.callibrationScale || {});
+              setViewportDimensions(
+                measurementDocument.viewportDimensions || {
+                  width: 0,
+                  height: 0,
+                }
+              );
+
+              // Load PDF from cloud URL
+              const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+                measurementDocument.fileUrl
+              )}`;
+              setFile(proxyUrl);
+            }
           }
+          return; // Exit early
+        }
+      }
+
+      if (fullDocument) {
+        setCurrentDocument(fullDocument);
+        setFixtures(fullDocument.fixtures || []);
+        setTags(
+          fullDocument.tags || [{ id: "1", name: "FD-1", color: "#ef4444" }]
+        );
+        setPageScales(fullDocument.pageScales || {});
+        setCallibrationScale(fullDocument.callibrationScale || {});
+        setViewportDimensions(
+          fullDocument.viewportDimensions || { width: 0, height: 0 }
+        );
+
+        // Load PDF from cloud URL if available
+        if (fullDocument.fileUrl) {
+          // Use proxy endpoint to bypass CORS issues
+          const proxyUrl = `/api/proxy-pdf?url=${encodeURIComponent(
+            fullDocument.fileUrl
+          )}`;
+          setFile(proxyUrl);
         }
       }
     } catch (error) {
-      console.error("Error loading existing measurements:", error);
+      console.error("Error loading existing fixtures:", error);
     }
   };
 
@@ -427,62 +538,41 @@ export default function PDFViewer() {
     setNumPages(nextNumPages);
   }
 
-  const handleMouseDown = (
+  const handleDoubleClick = (
     e: React.MouseEvent<HTMLDivElement>,
     pageNumber: number
   ) => {
+    // Only create fixture if a tag is selected
+    if (!selectedTag) return;
+
     const scale = pageScales[pageNumber] ?? 1.25;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / scale;
     const y = (e.clientY - rect.top) / scale;
-    setDragStart({ x, y, page: pageNumber });
-    setDragEnd(null);
-    setDragPage(pageNumber);
-    setIsDragging(true);
-  };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragStart || dragPage === null) return;
-    const scale = pageScales[dragPage] ?? 1.25;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top) / scale;
-    setDragEnd({ x, y, page: dragPage });
-  };
-
-  const handleMouseUp = () => {
-    if (!isDragging || !dragStart || !dragEnd) {
-      setIsDragging(false);
-      return;
-    }
-
-    const p1 = dragStart;
-    const p2 = dragEnd;
-    const pageNum = dragPage ?? 1;
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const pixelDistance = Math.sqrt(dx ** 2 + dy ** 2);
-
-    const newMeasurement: Measurement = {
+    const newFixture: Fixture = {
       id: Date.now(),
-      points: [p1, p2],
-      pixelDistance,
-      tag: selectedTag || undefined,
-      page: pageNum,
+      point: { x, y, page: pageNumber },
+      page: pageNumber,
+      tag: selectedTag,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    const updatedMeasurements = [...measurements, newMeasurement];
-    setMeasurements(updatedMeasurements);
-    setHistory((prev) => [...prev, measurements]);
+    const updatedFixtures = [...fixtures, newFixture];
+    setFixtures(updatedFixtures);
+    setHistory((prev) => [...prev, fixtures]);
     setRedoStack([]);
+  };
 
-    // Reset drag state
-    setDragStart(null);
-    setDragEnd(null);
-    setDragPage(null);
-    setIsDragging(false);
+  const handleFixturePositionUpdate = (fixtureId: number, newPoint: Point) => {
+    setFixtures((prev) =>
+      prev.map((f) =>
+        f.id === fixtureId
+          ? { ...f, point: newPoint, updatedAt: new Date() }
+          : f
+      )
+    );
   };
 
   // Track current page as user scrolls and a more precise page-in-view
@@ -557,16 +647,16 @@ export default function PDFViewer() {
   const handleUndo = () => {
     if (history.length === 0) return;
     const prev = history[history.length - 1];
-    setRedoStack((r) => [measurements, ...r]);
-    setMeasurements(prev);
+    setRedoStack((r) => [fixtures, ...r]);
+    setFixtures(prev);
     setHistory((h) => h.slice(0, h.length - 1));
   };
 
   const handleRedo = () => {
     if (redoStack.length === 0) return;
     const next = redoStack[0];
-    setMeasurements(next);
-    setHistory((h) => [...h, measurements]);
+    setFixtures(next);
+    setHistory((h) => [...h, fixtures]);
     setRedoStack((r) => r.slice(1));
   };
 
@@ -582,86 +672,78 @@ export default function PDFViewer() {
     }
   };
 
-  const handleMeasurementTagChange = (
-    measurementId: number,
-    tag: Tag | null
-  ) => {
-    setMeasurements((prev) =>
-      prev.map((m) =>
-        m.id === measurementId
-          ? { ...m, tag: tag || undefined, updatedAt: new Date() }
-          : m
+  const handleFixtureTagChange = (fixtureId: number, tag: Tag | null) => {
+    setFixtures((prev) =>
+      prev.map((f) =>
+        f.id === fixtureId
+          ? { ...f, tag: tag || undefined, updatedAt: new Date() }
+          : f
       )
     );
   };
 
-  const handleTogglePin = (measurementId: number) => {
+  const handleTogglePin = (fixtureId: number) => {
     setPinnedIds((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(measurementId)) {
-        newSet.delete(measurementId);
+      if (newSet.has(fixtureId)) {
+        newSet.delete(fixtureId);
       } else {
-        newSet.add(measurementId);
+        newSet.add(fixtureId);
       }
       return newSet;
     });
   };
 
-  const handleDeleteMeasurement = (measurementId: number) => {
-    // Remove from pinned measurements
+  const handleDeleteFixture = (fixtureId: number) => {
+    // Remove from pinned fixtures
     setPinnedIds((prev) => {
       const newSet = new Set(prev);
-      newSet.delete(measurementId);
+      newSet.delete(fixtureId);
       return newSet;
     });
 
-    // Remove from measurements
-    setMeasurements((prev) => prev.filter((m) => m.id !== measurementId));
+    // Remove from fixtures
+    setFixtures((prev) => prev.filter((f) => f.id !== fixtureId));
 
     // Update history for undo/redo
-    setHistory((prev) => [...prev, measurements]);
+    setHistory((prev) => [...prev, fixtures]);
     setRedoStack([]);
   };
 
   const handleDocumentUpdate = (
-    updatedDocument: MeasurementDocument | FixtureDocument
+    updatedDocument: FixtureDocument | MeasurementDocument
   ) => {
-    // In takeoff calculator context, it will always be MeasurementDocument
-    setCurrentDocument(updatedDocument as MeasurementDocument);
+    // In fixture counter context, it will always be FixtureDocument
+    setCurrentDocument(updatedDocument as FixtureDocument);
   };
 
-  const handleClearAllMeasurements = async () => {
+  const handleClearAllFixtures = async () => {
     if (!currentDocument || !companyId || !projectId) return;
 
     try {
-      // Clear all measurements from state
-      setMeasurements([]);
+      // Clear all fixtures from state
+      setFixtures([]);
       setHistory([]);
       setRedoStack([]);
       setPinnedIds(new Set());
 
       // Update document in database
-      await updateMeasurementDocument(
-        companyId,
-        projectId,
-        currentDocument.id,
-        {
-          measurements: [],
-        }
-      );
+      await updateFixtureDocument(companyId, projectId, currentDocument.id, {
+        fixtures: [],
+      });
 
       // Update local document state
-      const updatedDocument: MeasurementDocument = {
+      const updatedDocument: FixtureDocument = {
         ...currentDocument,
-        measurements: [],
+        fixtures: [],
         updatedAt: new Date(),
       };
       setCurrentDocument(updatedDocument);
 
       // Close dialog
-      setClearMeasurementsDialogOpen(false);
+      setClearFixturesDialogOpen(false);
     } catch (error) {
-      console.error("Error clearing measurements:", error);
+      console.error("Error clearing fixtures:", error);
     }
   };
 
@@ -671,7 +753,7 @@ export default function PDFViewer() {
       <div className="max-w-2xl mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Takeoff Calculator</CardTitle>
+            <CardTitle>Fixture Counter</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">Loading your data...</p>
@@ -686,10 +768,10 @@ export default function PDFViewer() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Take-off Calculator</h1>
+          <h1 className="text-3xl font-bold">Fixture Counter</h1>
           <p className="text-muted-foreground">
-            Upload PDF drawings and create precise measurements for your
-            projects.
+            Upload PDF drawings and mark fixture locations to count different
+            types of fixtures.
           </p>
         </div>
       </div>
@@ -705,19 +787,19 @@ export default function PDFViewer() {
           >
             <DocumentActions
               document={currentDocument}
-              measurementCount={measurements.length}
-              onClearAll={() => setClearMeasurementsDialogOpen(true)}
+              measurementCount={fixtures.length}
+              onClearAll={() => setClearFixturesDialogOpen(true)}
             />
           </DocumentManager>
         </div>
       )}
 
-      {/* Clear All Measurements Confirmation Dialog */}
-      <ClearAllMeasurementsDialog
-        open={clearMeasurementsDialogOpen}
-        onOpenChange={setClearMeasurementsDialogOpen}
-        onConfirm={handleClearAllMeasurements}
-        measurementCount={measurements.length}
+      {/* Clear All Fixtures Confirmation Dialog */}
+      <ClearAllFixturesDialog
+        open={clearFixturesDialogOpen}
+        onOpenChange={setClearFixturesDialogOpen}
+        onConfirm={handleClearAllFixtures}
+        fixtureCount={fixtures.length}
       />
 
       {/* File Upload Dialog */}
@@ -739,7 +821,7 @@ export default function PDFViewer() {
               | "error",
             progress: number
           ) => void
-        ) => handleNewMeasurement(projectName, fileName, file, onProgress)}
+        ) => handleNewFixture(projectName, fileName, file, onProgress)}
         companyId={companyId}
       />
 
@@ -928,11 +1010,6 @@ export default function PDFViewer() {
                 const pageNumber = index + 1;
                 const isVisible = Math.abs(pageNumber - currentPage) <= 3;
                 const scale = pageScales[pageNumber] ?? 1.25;
-                const scaleFactor =
-                  getDrawingCallibrations(
-                    callibrationScale[pageNumber]?.toString(),
-                    viewportDimensions
-                  ) ?? DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE];
 
                 return (
                   <div
@@ -943,9 +1020,7 @@ export default function PDFViewer() {
                       key={`pdf_page_${pageNumber}`}
                       className="relative border border-t-0 shadow-sm"
                       data-page-number={pageNumber}
-                      onMouseDown={(e) => handleMouseDown(e, pageNumber)}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
+                      onDoubleClick={(e) => handleDoubleClick(e, pageNumber)}
                     >
                       {isVisible && (
                         <>
@@ -974,21 +1049,17 @@ export default function PDFViewer() {
                               });
                             }}
                           />
-                          <MeasurementOverlay
+                          <FixtureOverlay
                             pageNumber={pageNumber}
-                            measurements={measurements}
+                            fixtures={fixtures}
                             scale={scale}
-                            scaleFactor={scaleFactor}
                             hoveredId={hoveredId}
                             pinnedIds={pinnedIds}
-                            isDragging={isDragging}
-                            dragStart={dragStart}
-                            dragEnd={dragEnd}
-                            dragPage={dragPage}
                             setHoveredId={setHoveredId}
                             onTogglePin={handleTogglePin}
-                            onTagChange={handleMeasurementTagChange}
-                            onDeleteMeasurement={handleDeleteMeasurement}
+                            onTagChange={handleFixtureTagChange}
+                            onDeleteFixture={handleDeleteFixture}
+                            onPositionUpdate={handleFixturePositionUpdate}
                             tags={tags}
                             pageWidth={pagesWidth[pageNumber] || 0}
                           />
@@ -1013,15 +1084,16 @@ export default function PDFViewer() {
                   <FileText className="w-10 h-10 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-3">
-                  No Take-off Project Loaded
+                  No Fixture Counter Project Loaded
                 </h3>
                 <p className="text-muted-foreground mb-6 leading-relaxed">
-                  Start a new take-off project by uploading a PDF drawing. You
-                  can create new measurements or continue with existing ones.
+                  Start a new fixture counting project by uploading a PDF
+                  drawing. You can mark fixture locations or continue with
+                  existing ones.
                 </p>
                 <Button onClick={handleNewTakeoff} size="lg" className="px-6">
                   <Upload className="w-4 h-4 mr-2" />
-                  Start New Take-off
+                  Start New Fixture Counter
                 </Button>
               </div>
             </CardContent>
@@ -1031,25 +1103,8 @@ export default function PDFViewer() {
 
       {file && (
         <div className="mt-6">
-          {measurements.length > 0 && (
-            <>
-              <MeasurementSummary
-                measurements={measurements}
-                tags={tags}
-                callibrationScale={callibrationScale}
-                viewportDimensions={viewportDimensions}
-              />
-              {/* <MeasurementList
-              measurements={measurements}
-              // Pass per-measurement scaleFactor based on page
-              scaleFactorGetter={(measurement) =>
-                callibrationScale[measurement.points[0].page] ??
-                DrawingCalibrations[DEFAULT_CALLIBRATION_VALUE]
-              }
-              tags={tags}
-              onMeasurementTagChange={handleMeasurementTagChange}
-            /> */}
-            </>
+          {fixtures.length > 0 && (
+            <FixtureSummary fixtures={fixtures} tags={tags} />
           )}
         </div>
       )}
