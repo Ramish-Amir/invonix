@@ -50,6 +50,7 @@ import {
   ChevronLeft,
   ChevronRight,
   HardDrive,
+  FolderRoot,
 } from "lucide-react";
 import { authAtom } from "@/atoms/authAtom";
 import { userCompanyAtom } from "@/atoms/companyAtom";
@@ -241,25 +242,27 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       );
 
       // Step 1: Delete all measurement documents from Firestore
-      const measurementDeletePromises = measurementDocs.map((measurementDoc) => {
-        return deleteDoc(
-          doc(
-            db,
-            "companies",
-            userCompany.id,
-            "projects",
-            projectId,
-            "measurements",
-            measurementDoc.id
-          )
-        ).catch((error) => {
-          console.error(
-            `Failed to delete measurement document ${measurementDoc.id}:`,
-            error
-          );
-          // Continue even if individual measurement deletion fails
-        });
-      });
+      const measurementDeletePromises = measurementDocs.map(
+        (measurementDoc) => {
+          return deleteDoc(
+            doc(
+              db,
+              "companies",
+              userCompany.id,
+              "projects",
+              projectId,
+              "measurements",
+              measurementDoc.id
+            )
+          ).catch((error) => {
+            console.error(
+              `Failed to delete measurement document ${measurementDoc.id}:`,
+              error
+            );
+            // Continue even if individual measurement deletion fails
+          });
+        }
+      );
 
       await Promise.all(measurementDeletePromises);
 
@@ -322,9 +325,7 @@ export default function ProjectsPage({}: ProjectsPageProps) {
       toast({
         title: "Error",
         description:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete project",
+          error instanceof Error ? error.message : "Failed to delete project",
         variant: "destructive",
       });
     } finally {
@@ -668,7 +669,15 @@ export default function ProjectsPage({}: ProjectsPageProps) {
                                 href={`/takeoff-calculator?projectId=${project.id}`}
                               >
                                 <Eye className="w-4 h-4 mr-2" />
-                                View Project
+                                Takeoff Calculator
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/fixture-counter?projectId=${project.id}`}
+                              >
+                                <FolderRoot className="w-4 h-4 mr-2" />
+                                Fixture Counter
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem
