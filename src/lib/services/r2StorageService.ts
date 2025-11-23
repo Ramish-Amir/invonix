@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Initialize S3 client for Cloudflare R2
 const getR2Client = () => {
@@ -116,6 +117,60 @@ export async function deleteFileFromR2(fileUrl: string): Promise<void> {
       "Failed to delete file from R2, continuing with project deletion:",
       error
     );
+  }
+}
+
+/**
+ * Generate a presigned URL for direct client-side upload to R2
+ * @param fileName - The original file name
+ * @param companyId - The company ID
+ * @param projectId - The project ID
+ * @param expiresIn - URL expiration time in seconds (default: 3600 = 1 hour)
+ * @returns Object containing the presigned URL and the file key
+ */
+export async function generatePresignedUploadUrl(
+  fileName: string,
+  companyId: string,
+  projectId: string,
+  expiresIn: number = 3600
+): Promise<{ presignedUrl: string; fileKey: string; publicUrl: string }> {
+  try {
+    const { client, bucketName } = getR2Client();
+
+    // Generate a simple key for the file: companies/{companyId}/{projectId}-{filename}.pdf
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const uniqueKey = `companies/${companyId}/${projectId}-${sanitizedFileName}`;
+
+    // Create PutObject command
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: uniqueKey,
+      ContentType: "application/pdf",
+    });
+
+    // Generate presigned URL
+    const presignedUrl = await getSignedUrl(client, command, { expiresIn });
+
+    // Generate the public URL
+    let publicUrl: string;
+    if (process.env.CLOUDFLARE_R2_PUBLIC_URL) {
+      const baseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL.endsWith("/")
+        ? process.env.CLOUDFLARE_R2_PUBLIC_URL
+        : `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/`;
+      publicUrl = `${baseUrl}${uniqueKey}`;
+    } else {
+      const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+      publicUrl = `https://pub-${accountId}.r2.dev/${uniqueKey}`;
+    }
+
+    return {
+      presignedUrl,
+      fileKey: uniqueKey,
+      publicUrl,
+    };
+  } catch (error) {
+    console.error("Error generating presigned URL:", error);
+    throw error;
   }
 }
 

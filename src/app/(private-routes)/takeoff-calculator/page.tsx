@@ -289,34 +289,14 @@ export default function PDFViewer() {
 
       // Step 3: Upload file to Cloudflare R2
       onProgress?.("uploading-file", 50);
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("companyId", companyId);
-      formData.append("projectId", currentProjectId);
-
-      const uploadResponse = await fetch("/api/upload-file", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        let errorData: any = {};
-        try {
-          errorData = await uploadResponse.json();
-        } catch (e) {
-          // If response is not JSON, try to get text
-          const text = await uploadResponse.text().catch(() => "");
-          errorData = { error: text || "Unknown error" };
-        }
-
-        throw new Error(
-          errorData.error ||
-            errorData.message ||
-            "Failed to upload file to cloud storage"
-        );
-      }
-
-      const { fileUrl, fileSize } = await uploadResponse.json();
+      const { uploadFileToR2: uploadFile } = await import(
+        "@/lib/utils/fileUpload"
+      );
+      const { fileUrl, fileSize } = await uploadFile(
+        file,
+        companyId,
+        currentProjectId
+      );
 
       // Step 4: Update storage usage after successful upload
       await increaseStorageUsage(companyId, file.size);
